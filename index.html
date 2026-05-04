@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trippy Black Hole</title>
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: black;
+    }
+    canvas {
+        display: block;
+    }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let width, height;
+function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
+
+// Mouse-controlled black hole
+let bh = { x: width/2, y: height/2 };
+
+window.addEventListener("mousemove", (e) => {
+    bh.x = e.clientX;
+    bh.y = e.clientY;
+});
+
+// Time variable for animation waves
+let t = 0;
+
+// Stars
+let stars = [];
+for (let i = 0; i < 1000; i++) {
+    stars.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        b: Math.random()
+    });
+}
+
+// Accretion particles
+let particles = [];
+for (let i = 0; i < 1500; i++) {
+    particles.push({
+        angle: Math.random() * Math.PI * 2,
+        radius: 60 + Math.random() * 250,
+        speed: 0.002 + Math.random() * 0.006
+    });
+}
+
+function draw() {
+    t += 0.01;
+
+    // Motion trails
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    ctx.fillRect(0, 0, width, height);
+
+    // === STARFIELD WITH TRIPPY LENSING ===
+    for (let s of stars) {
+        let dx = s.x - bh.x;
+        let dy = s.y - bh.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+
+        let angle = Math.atan2(dy, dx);
+
+        // gravitational distortion + wave ripple
+        let distortion = 12000 / (dist + 80);
+        let ripple = Math.sin(dist * 0.05 - t * 4) * 8;
+
+        let warpedDist = dist + distortion + ripple;
+
+        let x = bh.x + Math.cos(angle) * warpedDist;
+        let y = bh.y + Math.sin(angle) * warpedDist;
+
+        // RGB split for trippy chromatic aberration
+        ctx.fillStyle = `rgba(80,150,255,${s.b})`;
+        ctx.fillRect(x, y, 1.5, 1.5);
+
+        ctx.fillStyle = `rgba(150,80,255,${s.b * 0.6})`;
+        ctx.fillRect(x + 1, y, 1.5, 1.5);
+
+        ctx.fillStyle = `rgba(80,255,255,${s.b * 0.6})`;
+        ctx.fillRect(x - 1, y, 1.5, 1.5);
+    }
+
+    // === ACCRETION DISK ===
+    for (let p of particles) {
+        p.angle += p.speed;
+
+        let r = p.radius;
+
+        let warp = 1 / (1 + (100 / r));
+        let wave = Math.sin(p.angle * 6 + t * 5) * 5;
+
+        let x = bh.x + Math.cos(p.angle) * (r + wave) * warp;
+        let y = bh.y + Math.sin(p.angle) * (r + wave);
+
+        let intensity = 1 - (r / 300);
+
+        let hue = (t * 100 + r) % 360;
+
+        ctx.strokeStyle = `hsla(${hue},100%,60%,${intensity})`;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + 1, y + 1);
+        ctx.stroke();
+    }
+
+    // === EVENT HORIZON (PULSING) ===
+    let pulse = Math.sin(t * 3) * 10;
+
+    let gradient = ctx.createRadialGradient(
+        bh.x, bh.y, 20,
+        bh.x, bh.y, 90 + pulse
+    );
+
+    gradient.addColorStop(0, "black");
+    gradient.addColorStop(0.3, "rgba(50,0,100,0.8)");
+    gradient.addColorStop(0.6, "rgba(0,100,255,0.3)");
+    gradient.addColorStop(1, "rgba(0,0,0,0)");
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(bh.x, bh.y, 90 + pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+</body>
+</html>
