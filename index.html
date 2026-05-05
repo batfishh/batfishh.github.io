@@ -469,52 +469,103 @@
         }
         draw();
 
-        // ---- EERIE MUSIC ENGINE ----
+        // ---- EERIE MUSIC ENGINE ---- (C natural/harmonic minor)
         let audioCtx = null;
         let masterVol = null;
         let echoIn = null;
+        let reverbIn = null;
         let stepIndex = 0;
         let nextStepTime = 0;
         let loopCount = 0;
+        let curMelIdx = 0;
+        let curShimIdx = 0;
+        let curBassIdx = 0;
 
-        const BPM = 50;
-        const S = 60 / BPM / 2;
+        const BPM = 130;
+        const S = 60 / BPM / 4;  // 16th note at 130 BPM ≈ 0.115 s
 
         const N = {
             _: 0,
-            A1: 55.00, E2: 82.41,
-            A2: 110.00, E3: 164.81, F3: 174.61, G3: 196.00,
-            A3: 220.00, Bb3: 233.08,
-            C4: 261.63, D4: 293.66, Eb4: 311.13, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00,
-            C5: 523.25, D5: 587.33, E5: 659.26, F5: 698.46, A5: 880.00,
+            C2: 65.41,  G2: 98.00,  Ab2: 103.83, Bb2: 116.54,
+            C3: 130.81, D3: 146.83, Eb3: 155.56,  F3: 174.61,  G3: 196.00,  Ab3: 207.65, Bb3: 233.08, B3: 246.94,
+            C4: 261.63, D4: 293.66, Eb4: 311.13,  F4: 349.23,  G4: 392.00,  Ab4: 415.30, Bb4: 466.16, B4: 493.88,
+            C5: 523.25, D5: 587.33, Eb5: 622.25,  F5: 698.46,  G5: 783.99,  Ab5: 830.61,
         };
 
-        // --- MELODY A: descending dread (the original)
+        // MEL_A: Cm → Ab → Bb → G dominant cycling arpeggio (every 16th note)
         const MEL_A = [
-            N.E4, N._, N._, N._, N.D4, N._, N.C4, N._,
-            N.Bb3, N._, N._, N._, N.A3, N._, N._, N._,
-            N.G3, N._, N._, N._, N.F3, N._, N.E3, N._,
-            N.A3, N._, N.Bb3, N._, N.Eb4, N._, N._, N._,
+            N.C4,  N.Eb4, N.G4,  N.C5,  N.G4,  N.Eb4, N.C4,  N.G3,
+            N.Ab3, N.C4,  N.Eb4, N.Ab4, N.Eb4, N.C4,  N.Ab3, N.G3,
+            N.Bb3, N.D4,  N.F4,  N.Bb4, N.F4,  N.D4,  N.Bb3, N.G3,
+            N.G3,  N.B3,  N.D4,  N.G4,  N.F4,  N.Eb4, N.D4,  N.C4,
         ];
-        // --- MELODY B: rising tension counter-phrase
+        // MEL_B: Dm7b5 (half-diminished) — the darkest chord in C minor
         const MEL_B = [
-            N.A3, N._, N._, N._, N.C4, N._, N.E4, N._,
-            N._, N._, N.D4, N._, N._, N.F4, N._, N._,
-            N.E4, N._, N._, N.D4, N.C4, N._, N.Bb3, N._,
-            N.A3, N._, N._, N._, N._, N._, N._, N._,
+            N.D4,  N.F4,  N.Ab4, N.C5,  N.Ab4, N.F4,  N.D4,  N.F4,
+            N.D4,  N.Ab4, N.C5,  N.Eb5, N.C5,  N.Ab4, N.F4,  N.D4,
+            N.Eb4, N.G4,  N.Bb4, N.Eb5, N.Bb4, N.G4,  N.Eb4, N.Bb3,
+            N.C4,  N.Eb4, N.G4,  N.Bb4, N.Ab4, N.F4,  N.Eb4, N.D4,
+        ];
+        // MEL_C: fast descending Phrygian run + rising resolve
+        const MEL_C = [
+            N.Ab4, N.G4,  N.F4,  N.Eb4, N.D4,  N.C4,  N.B3,  N.C4,
+            N.Eb4, N.D4,  N.C4,  N.Bb3, N.Ab3, N.G3,  N.Ab3, N.Bb3,
+            N.C4,  N.Eb4, N.G4,  N.Ab4, N.G4,  N.F4,  N.Eb4, N.D4,
+            N.C4,  N.Eb4, N.G4,  N.C5,  N.Bb4, N.Ab4, N.G4,  N.C4,
+        ];
+        // MEL_D: wide octave leaps — ghostly, disorienting
+        const MEL_D = [
+            N.C5,  N.G4,  N.Eb4, N.C4,  N.G4,  N.C5,  N.Eb5, N.C5,
+            N.Ab4, N.Eb4, N.C4,  N.Ab3, N.C4,  N.Eb4, N.Ab4, N.C5,
+            N.Bb4, N.F4,  N.D4,  N.Bb3, N.D4,  N.F4,  N.Bb4, N.F5,
+            N.G4,  N.D4,  N.B3,  N.G3,  N.B3,  N.D4,  N.G4,  N.B4,
         ];
 
+        // Shimmer: sparse high notes every 4 steps (quarter note pulse)
         const SHIM_A = [
-            N._, N._, N._, N.A5, N._, N._, N._, N._,
-            N._, N._, N.E5, N._, N._, N._, N._, N._,
-            N._, N._, N._, N._, N.C5, N._, N._, N._,
-            N._, N._, N._, N._, N._, N.A4, N._, N._,
+            N.G5,  N._, N._, N._, N.Eb5, N._, N._, N._,
+            N.C5,  N._, N._, N._, N.Ab4, N._, N._, N._,
+            N.G5,  N._, N._, N._, N.Eb5, N._, N._, N._,
+            N.C5,  N._, N._, N._, N.Ab5, N._, N._, N._,
         ];
         const SHIM_B = [
-            N._, N.E5, N._, N._, N._, N._, N.D5, N._,
-            N._, N._, N._, N.A5, N._, N._, N._, N._,
-            N._, N._, N.F5, N._, N._, N._, N._, N._,
-            N.A5, N._, N._, N._, N._, N._, N.E5, N._,
+            N._, N._, N.Eb5, N._, N._, N._, N.G5,  N._,
+            N._, N._, N.C5,  N._, N._, N._, N.Ab5, N._,
+            N._, N._, N.D5,  N._, N._, N._, N.F5,  N._,
+            N._, N._, N.Eb5, N._, N._, N._, N.C5,  N._,
+        ];
+        const SHIM_C = [
+            N.Ab5, N._, N._, N._, N._, N._, N._, N._,
+            N.G5,  N._, N._, N._, N._, N._, N._, N._,
+            N._,   N._, N._, N._, N.Eb5, N._, N._, N._,
+            N._,   N._, N._, N._, N.C5,  N._, N._, N._,
+        ];
+
+        // Bass: slow pedal notes every 8 steps (half-note pulse)
+        const BASS_A = [
+            N.C2,  N._, N._, N._, N._, N._, N._, N._,
+            N.G2,  N._, N._, N._, N._, N._, N._, N._,
+            N.Ab2, N._, N._, N._, N._, N._, N._, N._,
+            N.G2,  N._, N._, N._, N._, N._, N._, N._,
+        ];
+        const BASS_B = [
+            N.Ab2, N._, N._, N._, N._, N._, N._, N._,
+            N.Bb2, N._, N._, N._, N._, N._, N._, N._,
+            N.C3,  N._, N._, N._, N._, N._, N._, N._,
+            N.G2,  N._, N._, N._, N._, N._, N._, N._,
+        ];
+
+        const MELODIES  = [MEL_A, MEL_B, MEL_C, MEL_D];
+        const SHIMMERS  = [SHIM_A, SHIM_B, SHIM_C];
+        const BASSES    = [BASS_A, BASS_B];
+
+        const GHOST_POOL = [N.C5, N.Eb5, N.G5, N.Ab5, N.Bb4, N.F5, N.D5, N.Ab4];
+        const PAD_CHORDS = [
+            [N.C3, N.Eb3, N.G3],   // Cm
+            [N.Ab2, N.C3, N.Eb3],  // Ab
+            [N.Bb2, N.D3, N.F3],   // Bb
+            [N.G2, N.B3, N.D3],    // G (harmonic V)
+            [N.F3, N.Ab3, N.C4],   // Fm
         ];
 
         function ensureAudio() {
@@ -524,10 +575,11 @@
             masterVol.gain.value = 0.14;
             masterVol.connect(audioCtx.destination);
 
+            // Short rhythmic echo
             const delay = audioCtx.createDelay(2.0);
             const feedback = audioCtx.createGain();
             const wetGain = audioCtx.createGain();
-            delay.delayTime.value = 0.42;
+            delay.delayTime.value = S * 4;  // quarter-note echo at current tempo
             feedback.gain.value = 0.48;
             wetGain.gain.value = 0.28;
             delay.connect(feedback);
@@ -536,12 +588,26 @@
             wetGain.connect(masterVol);
             echoIn = delay;
 
+            // Long cave reverb (separate chain)
+            const cave = audioCtx.createDelay(4.0);
+            const caveFb = audioCtx.createGain();
+            const caveWet = audioCtx.createGain();
+            cave.delayTime.value = 1.8;
+            caveFb.gain.value = 0.35;
+            caveWet.gain.value = 0.12;
+            cave.connect(caveFb);
+            caveFb.connect(cave);
+            cave.connect(caveWet);
+            caveWet.connect(masterVol);
+            reverbIn = cave;
+
+            // C minor drone: tonic + fifth + octave, micro-detuned for beating
             const droneGain = audioCtx.createGain();
             droneGain.gain.setValueAtTime(0, audioCtx.currentTime);
-            droneGain.gain.linearRampToValueAtTime(0.28, audioCtx.currentTime + 5);
+            droneGain.gain.linearRampToValueAtTime(0.22, audioCtx.currentTime + 8);
             droneGain.connect(masterVol);
             droneGain.connect(echoIn);
-            [N.A1, N.A1 * 1.007, N.E2].forEach(freq => {
+            [N.C2, N.C2 * 1.007, N.G2, N.G2 * 0.994, N.C3 * 0.998].forEach(freq => {
                 const o = audioCtx.createOscillator();
                 o.type = "sine";
                 o.frequency.value = freq;
@@ -553,11 +619,11 @@
             tick();
         }
 
-        function tone(freq, start, dur, vol, echo = false) {
+        function tone(freq, start, dur, vol, echo = false, type = "sine") {
             if (!freq || !audioCtx) return;
             const osc = audioCtx.createOscillator();
             const g = audioCtx.createGain();
-            osc.type = "sine";
+            osc.type = type;
             osc.frequency.value = freq;
             const attack = Math.min(dur * 0.25, 0.4);
             g.gain.setValueAtTime(0.0001, start);
@@ -569,6 +635,51 @@
             if (echo) g.connect(echoIn);
             osc.start(start);
             osc.stop(start + dur + 0.05);
+        }
+
+        // Slow-attack sustained chord cluster
+        function pad(freqs, start, dur, vol) {
+            if (!audioCtx) return;
+            freqs.forEach(f => {
+                const osc = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                osc.type = "triangle";
+                osc.frequency.value = f * (1 + (Math.random() - 0.5) * 0.005);
+                const attack = dur * 0.3;
+                g.gain.setValueAtTime(0.0001, start);
+                g.gain.exponentialRampToValueAtTime(vol, start + attack);
+                g.gain.setValueAtTime(vol, start + dur * 0.75);
+                g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+                osc.connect(g);
+                g.connect(masterVol);
+                if (reverbIn) g.connect(reverbIn);
+                osc.start(start);
+                osc.stop(start + dur + 0.1);
+            });
+        }
+
+        // Bandpass-filtered wind breath texture
+        function breathNoise(start, dur) {
+            if (!audioCtx) return;
+            const bufLen = Math.floor(audioCtx.sampleRate * Math.min(dur, 8));
+            const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < bufLen; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(Math.sin(Math.PI * i / bufLen), 2);
+            }
+            const noise = audioCtx.createBufferSource();
+            const bp = audioCtx.createBiquadFilter();
+            bp.type = "bandpass";
+            bp.frequency.value = 600 + Math.random() * 600;
+            bp.Q.value = 0.4;
+            const g = audioCtx.createGain();
+            g.gain.value = 0.01;
+            noise.buffer = buf;
+            noise.connect(bp);
+            bp.connect(g);
+            g.connect(masterVol);
+            g.connect(echoIn);
+            noise.start(start);
         }
 
         // ---- CLICK BOOM: gravitational thud + filtered noise impact ----
@@ -616,14 +727,38 @@
         function tick() {
             if (!audioCtx) return;
             while (nextStepTime < audioCtx.currentTime + 0.18) {
-                // Detect loop boundary and swap melodies
-                if (stepIndex > 0 && stepIndex % MEL_A.length === 0) loopCount++;
-                const useB = loopCount % 2 === 1;
-                const mel = useB ? MEL_B : MEL_A;
-                const shim = useB ? SHIM_B : SHIM_A;
+                if (stepIndex > 0 && stepIndex % MEL_A.length === 0) {
+                    loopCount++;
+                    // Re-roll all patterns randomly each loop
+                    curMelIdx  = Math.floor(Math.random() * MELODIES.length);
+                    curShimIdx = Math.floor(Math.random() * SHIMMERS.length);
+                    curBassIdx = Math.floor(Math.random() * BASSES.length);
+                    // Pad chord every other loop
+                    if (loopCount % 2 === 0) {
+                        const chord = PAD_CHORDS[Math.floor(Math.random() * PAD_CHORDS.length)];
+                        pad(chord, nextStepTime, S * MEL_A.length * 1.8, 0.032);
+                    }
+                    // Atmospheric breath noise ~45% of loops
+                    if (Math.random() < 0.45) {
+                        breathNoise(nextStepTime + Math.random() * S * 6, S * 8 + Math.random() * S * 4);
+                    }
+                }
+
+                const mel  = MELODIES[curMelIdx];
+                const shim = SHIMMERS[curShimIdx];
+                const bass = BASSES[curBassIdx];
                 const i = stepIndex % mel.length;
-                if (mel[i]) tone(mel[i], nextStepTime, S * 3.2, 0.55, true);
-                if (shim[i]) tone(shim[i], nextStepTime, S * 1.6, 0.07, false);
+
+                if (mel[i])  tone(mel[i],  nextStepTime, S * 1.4, 0.48, true,  "triangle");
+                if (shim[i]) tone(shim[i], nextStepTime, S * 4.0, 0.07, false, "sine");
+                if (bass[i]) tone(bass[i], nextStepTime, S * 7.5, 0.42, true,  "sine");
+
+                // ~3% chance of ghost note per step (less frequent at fast tempo)
+                if (Math.random() < 0.03) {
+                    const ghost = GHOST_POOL[Math.floor(Math.random() * GHOST_POOL.length)];
+                    tone(ghost, nextStepTime + Math.random() * S * 0.5, S * 3.0, 0.038, true, "sine");
+                }
+
                 nextStepTime += S;
                 stepIndex++;
             }
