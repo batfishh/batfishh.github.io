@@ -279,6 +279,10 @@
             bh.y = lerp(bh.y, mouse.y, 0.055);
             ehScale = lerp(ehScale, ehScaleTarget, 0.1);
 
+            // Shrink the black hole + disk + jets on small screens so it occupies
+            // roughly the same fraction of the viewport as it does on desktop.
+            const screenScale = Math.min(1, Math.min(width, height) / 700);
+
             distortSpike *= 0.82;
             flashAlpha *= 0.76;
 
@@ -363,7 +367,7 @@
             // Gargantua's bright crescent so iconic.
             for (const p of particles) {
                 p.angle += p.speed;
-                const r = p.radius;
+                const r = p.radius * screenScale;
                 const wave = Math.sin(p.angle * 5 + t * 2.5) * 2.5;
                 const x = bh.x + Math.cos(p.angle) * (r + wave);
                 const y = bh.y + Math.sin(p.angle) * (r + wave) * 0.3;
@@ -371,10 +375,10 @@
                 const doppler = Math.sin(p.angle);                  // -1 (back) … +1 (front)
                 const beam = 0.4 + Math.pow(Math.max(0, 0.5 + doppler * 0.5), 2.2) * 1.6;
 
-                const baseIntensity = Math.pow(Math.max(0, 1 - (r - 65) / 240), 1.4);
+                const baseIntensity = Math.pow(Math.max(0, 1 - (p.radius - 65) / 240), 1.4);
                 const intensity = Math.min(1, baseIntensity * beam);
 
-                const baseHue = (t * 55 + r * 1.2 + p.hueOffset) % 360;
+                const baseHue = (t * 55 + p.radius * 1.2 + p.hueOffset) % 360;
                 const hue = baseHue + doppler * 22;
                 const lightness = 50 + intensity * 28 + doppler * 12;
 
@@ -389,7 +393,7 @@
                 j.progress += j.speed;
                 if (j.progress > 1) j.progress = 0;
                 const x = bh.x + j.spread * j.progress;
-                const y = bh.y + j.side * j.progress * 280;
+                const y = bh.y + j.side * j.progress * 280 * screenScale;
                 ctx.beginPath();
                 ctx.arc(x, y, 1.8 * (1 - j.progress), 0, Math.PI * 2);
                 ctx.fillStyle = `hsla(${210 + j.progress * 50},100%,82%,${(1 - j.progress) * 0.22})`;
@@ -421,7 +425,7 @@
 
             // ---- EVENT HORIZON ----
             const pulse = Math.sin(t * 1.8) * 4;
-            const hr = (58 + pulse) * ehScale;
+            const hr = (58 + pulse) * ehScale * screenScale;
 
             const halo = ctx.createRadialGradient(bh.x, bh.y, hr * 0.6, bh.x, bh.y, hr * 4.5);
             halo.addColorStop(0, "rgba(0,0,0,0)");
