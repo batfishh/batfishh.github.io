@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>batfish</title>
     <meta property="og:title" content="blackholeeeee">
     <meta property="og:description" content="idk what this is">
@@ -52,6 +53,17 @@
         const isTouchDevice = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
         let gyroEnabled = false;
         let gyroBase = null;
+        let motionBase = null;
+        let orientationActive = false;
+
+        function clampTilt(value) {
+            return Math.max(-1, Math.min(1, value));
+        }
+
+        function setGyroMouse(tiltX, tiltY) {
+            mouse.x = width / 2 + clampTilt(tiltX) * width * 0.48;
+            mouse.y = height / 2 + clampTilt(tiltY) * height * 0.48;
+        }
 
         function handleOrientation(e) {
             if (!isTouchDevice) return;
@@ -60,35 +72,59 @@
             const gamma = e.gamma; // left/right tilt, roughly -90..90
             if (beta === null || gamma === null) return;
 
+            orientationActive = true;
             if (!gyroBase) gyroBase = { beta, gamma };
 
-            const tiltX = Math.max(-1, Math.min(1, (gamma - gyroBase.gamma) / 35));
-            const tiltY = Math.max(-1, Math.min(1, (beta - gyroBase.beta) / 35));
+            setGyroMouse((gamma - gyroBase.gamma) / 35, (beta - gyroBase.beta) / 35);
+        }
 
-            mouse.x = width / 2 + tiltX * width * 0.48;
-            mouse.y = height / 2 + tiltY * height * 0.48;
+        function handleMotion(e) {
+            if (!isTouchDevice || orientationActive) return;
+
+            const gravity = e.accelerationIncludingGravity;
+            if (!gravity || gravity.x === null || gravity.y === null) return;
+
+            if (!motionBase) motionBase = { x: gravity.x, y: gravity.y };
+
+            setGyroMouse((gravity.x - motionBase.x) / 5, (motionBase.y - gravity.y) / 5);
         }
 
         function enableGyroPointer() {
-            if (!isTouchDevice || gyroEnabled || !("DeviceOrientationEvent" in window)) return;
+            if (!isTouchDevice || gyroEnabled) return;
 
             const start = () => {
-                window.addEventListener("deviceorientation", handleOrientation);
+                if ("DeviceOrientationEvent" in window) {
+                    window.addEventListener("deviceorientation", handleOrientation);
+                }
+                if ("DeviceMotionEvent" in window) {
+                    window.addEventListener("devicemotion", handleMotion);
+                }
                 gyroEnabled = true;
             };
 
-            if (typeof DeviceOrientationEvent.requestPermission === "function") {
-                DeviceOrientationEvent.requestPermission()
-                    .then((state) => { if (state === "granted") start(); })
-                    .catch(() => { });
-            } else {
+            const orientationPermission = "DeviceOrientationEvent" in window &&
+                typeof DeviceOrientationEvent.requestPermission === "function"
+                ? DeviceOrientationEvent.requestPermission()
+                : Promise.resolve("granted");
+            const motionPermission = "DeviceMotionEvent" in window &&
+                typeof DeviceMotionEvent.requestPermission === "function"
+                ? DeviceMotionEvent.requestPermission()
+                : Promise.resolve("granted");
+
+            Promise.allSettled([orientationPermission, motionPermission]).then((results) => {
+                if (results.some((result) => result.status === "fulfilled" && result.value === "granted")) {
+                    start();
+                }
+            });
+
+            if (!("DeviceOrientationEvent" in window) && !("DeviceMotionEvent" in window)) {
                 start();
             }
         }
 
         window.addEventListener("touchstart", enableGyroPointer, { once: true, passive: true });
-        window.addEventListener("resize", () => { gyroBase = null; });
-        window.addEventListener("orientationchange", () => { gyroBase = null; });
+        window.addEventListener("resize", () => { gyroBase = null; motionBase = null; });
+        window.addEventListener("orientationchange", () => { gyroBase = null; motionBase = null; });
 
         let t = 0;
 
