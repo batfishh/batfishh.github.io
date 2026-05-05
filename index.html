@@ -19,128 +19,330 @@
 <canvas id="canvas"></canvas>
 
 <script>
+// ---- CANVAS ----
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 let width, height;
 function resize() {
-    width = canvas.width = window.innerWidth;
+    width  = canvas.width  = window.innerWidth;
     height = canvas.height = window.innerHeight;
 }
 resize();
 window.addEventListener("resize", resize);
 
-// Mouse-controlled black hole
-let bh = { x: width/2, y: height/2 };
+let mouse = { x: width / 2, y: height / 2 };
+let bh    = { x: width / 2, y: height / 2 };
+window.addEventListener("mousemove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
 
-window.addEventListener("mousemove", (e) => {
-    bh.x = e.clientX;
-    bh.y = e.clientY;
-});
-
-// Time variable for animation waves
 let t = 0;
 
-// Stars
-let stars = [];
-for (let i = 0; i < 1000; i++) {
+const stars = [];
+for (let i = 0; i < 900; i++) {
     stars.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        b: Math.random()
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        b: 0.3 + Math.random() * 0.7,
+        size: Math.random() < 0.85 ? 0.8 + Math.random() * 0.8 : 1.6 + Math.random() * 1.4,
+        phase: Math.random() * Math.PI * 2
     });
 }
 
-// Accretion particles
-let particles = [];
-for (let i = 0; i < 1500; i++) {
+const particles = [];
+for (let i = 0; i < 2200; i++) {
+    const inner = i < 1400;
     particles.push({
         angle: Math.random() * Math.PI * 2,
-        radius: 60 + Math.random() * 250,
-        speed: 0.002 + Math.random() * 0.006
+        radius: inner ? 65 + Math.random() * 110 : 175 + Math.random() * 130,
+        speed: inner ? 0.005 + Math.random() * 0.006 : 0.002 + Math.random() * 0.003,
+        size: inner ? 0.8 + Math.random() * 1.4 : 0.4 + Math.random() * 0.9,
+        hueOffset: Math.random() * 60
     });
 }
+
+const jets = [];
+for (let i = 0; i < 260; i++) {
+    jets.push({
+        progress: Math.random(),
+        speed: 0.006 + Math.random() * 0.01,
+        side: i < 130 ? 1 : -1,
+        spread: (Math.random() - 0.5) * 22
+    });
+}
+
+// ---- CLICK EFFECT STATE ----
+// Photon ring cycles through these hues on each click
+const ringHues = [38, 190, 320, 140, 270, 0, 55];
+let ringHueIdx = 0;
+
+const shockwaves = []; // { x, y, age, hue }
+let distortSpike = 0;  // decays each frame; multiplies star gravitational distortion
+let flashAlpha   = 0;  // decays each frame; overexposure bloom from BH
+
+function lerp(a, b, f) { return a + (b - a) * f; }
 
 function draw() {
     t += 0.01;
+    bh.x = lerp(bh.x, mouse.x, 0.055);
+    bh.y = lerp(bh.y, mouse.y, 0.055);
 
-    // Motion trails
-    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    // Decay per-frame click effects
+    distortSpike *= 0.82;
+    flashAlpha   *= 0.76;
+
+    ctx.fillStyle = "rgba(0,0,0,0.07)";
     ctx.fillRect(0, 0, width, height);
 
-    // === STARFIELD WITH TRIPPY LENSING ===
-    for (let s of stars) {
-        let dx = s.x - bh.x;
-        let dy = s.y - bh.y;
-        let dist = Math.sqrt(dx*dx + dy*dy);
-
-        let angle = Math.atan2(dy, dx);
-
-        // gravitational distortion + wave ripple
-        let distortion = 12000 / (dist + 80);
-        let ripple = Math.sin(dist * 0.05 - t * 4) * 8;
-
-        let warpedDist = dist + distortion + ripple;
-
-        let x = bh.x + Math.cos(angle) * warpedDist;
-        let y = bh.y + Math.sin(angle) * warpedDist;
-
-        // RGB split for trippy chromatic aberration
-        ctx.fillStyle = `rgba(80,150,255,${s.b})`;
-        ctx.fillRect(x, y, 1.5, 1.5);
-
-        ctx.fillStyle = `rgba(150,80,255,${s.b * 0.6})`;
-        ctx.fillRect(x + 1, y, 1.5, 1.5);
-
-        ctx.fillStyle = `rgba(80,255,255,${s.b * 0.6})`;
-        ctx.fillRect(x - 1, y, 1.5, 1.5);
+    // ---- STARS (distortion spiked on click) ----
+    const distortStr = 14000 * (1 + distortSpike * 4);
+    for (const s of stars) {
+        s.phase += 0.018;
+        const twinkle = 0.65 + Math.sin(s.phase) * 0.35;
+        const dx = s.x - bh.x, dy = s.y - bh.y;
+        const dist  = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        const warpedDist = dist + distortStr / (dist + 90) + Math.sin(dist * 0.038 - t * 2.8) * 5;
+        const x = bh.x + Math.cos(angle) * warpedDist;
+        const y = bh.y + Math.sin(angle) * warpedDist;
+        const a = s.b * twinkle;
+        ctx.fillStyle = `rgba(110,170,255,${a})`;
+        ctx.fillRect(x - s.size * 0.5, y - s.size * 0.5, s.size, s.size);
+        ctx.fillStyle = `rgba(190,110,255,${a * 0.45})`;
+        ctx.fillRect(x - s.size * 0.5 + 1.2, y - s.size * 0.5, s.size, s.size);
+        ctx.fillStyle = `rgba(80,240,220,${a * 0.45})`;
+        ctx.fillRect(x - s.size * 0.5 - 1.2, y - s.size * 0.5, s.size, s.size);
     }
 
-    // === ACCRETION DISK ===
-    for (let p of particles) {
+    // ---- ACCRETION DISK ----
+    for (const p of particles) {
         p.angle += p.speed;
-
-        let r = p.radius;
-
-        let warp = 1 / (1 + (100 / r));
-        let wave = Math.sin(p.angle * 6 + t * 5) * 5;
-
-        let x = bh.x + Math.cos(p.angle) * (r + wave) * warp;
-        let y = bh.y + Math.sin(p.angle) * (r + wave);
-
-        let intensity = 1 - (r / 300);
-
-        let hue = (t * 100 + r) % 360;
-
-        ctx.strokeStyle = `hsla(${hue},100%,60%,${intensity})`;
+        const r    = p.radius;
+        const wave = Math.sin(p.angle * 5 + t * 2.5) * 2.5;
+        const x    = bh.x + Math.cos(p.angle) * (r + wave);
+        const y    = bh.y + Math.sin(p.angle) * (r + wave) * 0.3;
+        const intensity = Math.pow(Math.max(0, 1 - (r - 65) / 240), 1.4);
+        const hue = (t * 55 + r * 1.2 + p.hueOffset) % 360;
         ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + 1, y + 1);
-        ctx.stroke();
+        ctx.arc(x, y, p.size * (0.5 + intensity * 0.8), 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${hue},100%,${55 + intensity * 25}%,${intensity * 0.85})`;
+        ctx.fill();
     }
 
-    // === EVENT HORIZON (PULSING) ===
-    let pulse = Math.sin(t * 3) * 10;
+    // ---- JETS ----
+    for (const j of jets) {
+        j.progress += j.speed;
+        if (j.progress > 1) j.progress = 0;
+        const x = bh.x + j.spread * j.progress;
+        const y = bh.y + j.side * j.progress * 280;
+        ctx.beginPath();
+        ctx.arc(x, y, 1.8 * (1 - j.progress), 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${210 + j.progress * 50},100%,82%,${(1 - j.progress) * 0.22})`;
+        ctx.fill();
+    }
 
-    let gradient = ctx.createRadialGradient(
-        bh.x, bh.y, 20,
-        bh.x, bh.y, 90 + pulse
-    );
+    // ---- SHOCKWAVE RINGS ----
+    // 5 staggered rings per click, each with chromatic triple-ring,
+    // expanding to fill the screen and fading out.
+    const diag = Math.sqrt(width * width + height * height);
+    for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.age += 0.016;
+        if (sw.age < 0) continue;        // not yet triggered (stagger delay)
+        if (sw.age > 1.4) { shockwaves.splice(i, 1); continue; }
 
-    gradient.addColorStop(0, "black");
-    gradient.addColorStop(0.3, "rgba(50,0,100,0.8)");
-    gradient.addColorStop(0.6, "rgba(0,100,255,0.3)");
-    gradient.addColorStop(1, "rgba(0,0,0,0)");
+        const p     = sw.age / 1.4;
+        const r     = p * diag * 0.85;
+        const alpha = Math.pow(1 - p, 1.6) * 0.9;
+        const lw    = Math.max(0.3, 2.5 * (1 - p));
 
-    ctx.fillStyle = gradient;
+        // Three chromatic rings per wave: hue, hue+120, hue+240
+        for (let c = 0; c < 3; c++) {
+            const hue    = (sw.hue + c * 120) % 360;
+            const offset = (c - 1) * 7;         // -7, 0, +7 px spread
+            const aFrac  = c === 1 ? 1 : 0.35;  // centre ring brightest
+            ctx.beginPath();
+            ctx.arc(sw.x, sw.y, Math.max(1, r + offset), 0, Math.PI * 2);
+            ctx.strokeStyle = `hsla(${hue},100%,75%,${alpha * aFrac})`;
+            ctx.lineWidth   = c === 1 ? lw * 1.8 : lw * 0.7;
+            ctx.stroke();
+        }
+    }
+
+    // ---- EVENT HORIZON ----
+    const pulse = Math.sin(t * 1.8) * 4;
+    const hr = 58 + pulse;
+
+    const halo = ctx.createRadialGradient(bh.x, bh.y, hr * 0.6, bh.x, bh.y, hr * 4.5);
+    halo.addColorStop(0, "rgba(0,0,0,0)");
+    halo.addColorStop(0.25, "rgba(70,0,180,0.12)");
+    halo.addColorStop(0.55, "rgba(0,60,220,0.07)");
+    halo.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.arc(bh.x, bh.y, 90 + pulse, 0, Math.PI * 2);
+    ctx.arc(bh.x, bh.y, hr * 4.5, 0, Math.PI * 2);
     ctx.fill();
+
+    // Photon ring — colour cycles on click
+    const rh = ringHues[ringHueIdx];
+    ctx.beginPath();
+    ctx.arc(bh.x, bh.y, hr * 1.18, 0, Math.PI * 2);
+    ctx.strokeStyle = `hsla(${rh},100%,72%,${0.32 + Math.sin(t * 2.5) * 0.1})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    const body = ctx.createRadialGradient(bh.x, bh.y, 0, bh.x, bh.y, hr);
+    body.addColorStop(0, "rgb(0,0,0)");
+    body.addColorStop(0.75, "rgba(10,0,30,0.97)");
+    body.addColorStop(0.92, "rgba(50,0,110,0.55)");
+    body.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.arc(bh.x, bh.y, hr, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ---- FLASH BLOOM (drawn last — cinematic overexposure) ----
+    if (flashAlpha > 0.005) {
+        const fl = ctx.createRadialGradient(bh.x, bh.y, 0, bh.x, bh.y, Math.max(width, height) * 0.7);
+        fl.addColorStop(0,   `rgba(255,255,255,${flashAlpha})`);
+        fl.addColorStop(0.15,`hsla(${rh},100%,80%,${flashAlpha * 0.6})`);
+        fl.addColorStop(0.5, `hsla(${rh},100%,50%,${flashAlpha * 0.15})`);
+        fl.addColorStop(1,   "rgba(0,0,0,0)");
+        ctx.fillStyle = fl;
+        ctx.fillRect(0, 0, width, height);
+    }
 
     requestAnimationFrame(draw);
 }
-
 draw();
+
+// ---- EERIE MUSIC ENGINE ----
+let audioCtx  = null;
+let masterVol = null;
+let echoIn    = null;
+let stepIndex = 0;
+let nextStepTime = 0;
+let musicStarted = false;
+
+const BPM = 50;
+const S   = 60 / BPM / 2;
+
+const N = {
+    _:    0,
+    A1:   55.00, E2:  82.41,
+    A2:  110.00, E3: 164.81, F3: 174.61, G3: 196.00,
+    A3:  220.00, Bb3: 233.08, C4: 261.63, D4: 293.66,
+    Eb4: 311.13, E4: 329.63, F4: 349.23, A4: 440.00,
+    C5:  523.25, E5: 659.26, A5: 880.00,
+};
+
+const MEL = [
+    N.E4,  N._,   N._,   N._,    N.D4,  N._,   N.C4,  N._,
+    N.Bb3, N._,   N._,   N._,    N.A3,  N._,   N._,   N._,
+    N.G3,  N._,   N._,   N._,    N.F3,  N._,   N.E3,  N._,
+    N.A3,  N._,   N.Bb3, N._,    N.Eb4, N._,   N._,   N._,
+];
+
+const SHIMMER = [
+    N._,   N._,   N._,   N.A5,   N._,   N._,   N._,   N._,
+    N._,   N._,   N.E5,  N._,    N._,   N._,   N._,   N._,
+    N._,   N._,   N._,   N._,    N.C5,  N._,   N._,   N._,
+    N._,   N._,   N._,   N._,    N._,   N.A4,  N._,   N._,
+];
+
+function ensureAudio() {
+    if (audioCtx) return;
+    audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+    masterVol = audioCtx.createGain();
+    masterVol.gain.value = 0.14;
+    masterVol.connect(audioCtx.destination);
+
+    const delay    = audioCtx.createDelay(2.0);
+    const feedback = audioCtx.createGain();
+    const wetGain  = audioCtx.createGain();
+    delay.delayTime.value = 0.42;
+    feedback.gain.value   = 0.48;
+    wetGain.gain.value    = 0.28;
+    delay.connect(feedback);
+    feedback.connect(delay);
+    delay.connect(wetGain);
+    wetGain.connect(masterVol);
+    echoIn = delay;
+
+    const droneGain = audioCtx.createGain();
+    droneGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    droneGain.gain.linearRampToValueAtTime(0.28, audioCtx.currentTime + 5);
+    droneGain.connect(masterVol);
+    droneGain.connect(echoIn);
+    [N.A1, N.A1 * 1.007, N.E2].forEach(freq => {
+        const o = audioCtx.createOscillator();
+        o.type = "sine";
+        o.frequency.value = freq;
+        o.connect(droneGain);
+        o.start();
+    });
+
+    nextStepTime = audioCtx.currentTime + 0.05;
+    tick();
+}
+
+function tone(freq, start, dur, vol, echo = false) {
+    if (!freq || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const g   = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    const attack = Math.min(dur * 0.25, 0.4);
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(vol, start + attack);
+    g.gain.setValueAtTime(vol, start + dur * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    osc.connect(g);
+    g.connect(masterVol);
+    if (echo) g.connect(echoIn);
+    osc.start(start);
+    osc.stop(start + dur + 0.05);
+}
+
+function tick() {
+    if (!audioCtx) return;
+    while (nextStepTime < audioCtx.currentTime + 0.18) {
+        const i = stepIndex % MEL.length;
+        if (MEL[i])     tone(MEL[i],     nextStepTime, S * 3.2, 0.55, true);
+        if (SHIMMER[i]) tone(SHIMMER[i], nextStepTime, S * 1.6, 0.07, false);
+        nextStepTime += S;
+        stepIndex++;
+    }
+    setTimeout(tick, 50);
+}
+
+// Try autoplay on load + mousemove (non-Chrome)
+window.addEventListener("load",      () => { ensureAudio(); audioCtx.resume().catch(() => {}); });
+window.addEventListener("mousemove", () => { ensureAudio(); audioCtx.resume().catch(() => {}); }, { once: true });
+
+// ---- CLICK: start audio once + trigger visual effects ----
+window.addEventListener("click", () => {
+    // Audio: start if needed, never toggle
+    ensureAudio();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+
+    // Cycle photon ring colour
+    ringHueIdx = (ringHueIdx + 1) % ringHues.length;
+
+    // Kick visual effects
+    distortSpike = 1.0;
+    flashAlpha   = 0.55;
+
+    // Spawn 5 staggered shockwave rings from current BH position
+    const baseHue = ringHues[ringHueIdx];
+    for (let i = 0; i < 5; i++) {
+        shockwaves.push({
+            x:   bh.x,
+            y:   bh.y,
+            age: -i * 0.08,              // stagger: each ring starts 80ms later
+            hue: (baseHue + i * 40) % 360
+        });
+    }
+});
 </script>
 </body>
 </html>
