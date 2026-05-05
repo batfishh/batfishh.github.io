@@ -48,6 +48,48 @@
         let bh = { x: width / 2, y: height / 2 };
         window.addEventListener("mousemove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
 
+        // ---- MOBILE GYRO POINTER ----
+        const isTouchDevice = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+        let gyroEnabled = false;
+        let gyroBase = null;
+
+        function handleOrientation(e) {
+            if (!isTouchDevice) return;
+
+            const beta = e.beta;   // front/back tilt, roughly -180..180
+            const gamma = e.gamma; // left/right tilt, roughly -90..90
+            if (beta === null || gamma === null) return;
+
+            if (!gyroBase) gyroBase = { beta, gamma };
+
+            const tiltX = Math.max(-1, Math.min(1, (gamma - gyroBase.gamma) / 35));
+            const tiltY = Math.max(-1, Math.min(1, (beta - gyroBase.beta) / 35));
+
+            mouse.x = width / 2 + tiltX * width * 0.48;
+            mouse.y = height / 2 + tiltY * height * 0.48;
+        }
+
+        function enableGyroPointer() {
+            if (!isTouchDevice || gyroEnabled || !("DeviceOrientationEvent" in window)) return;
+
+            const start = () => {
+                window.addEventListener("deviceorientation", handleOrientation);
+                gyroEnabled = true;
+            };
+
+            if (typeof DeviceOrientationEvent.requestPermission === "function") {
+                DeviceOrientationEvent.requestPermission()
+                    .then((state) => { if (state === "granted") start(); })
+                    .catch(() => { });
+            } else {
+                start();
+            }
+        }
+
+        window.addEventListener("touchstart", enableGyroPointer, { once: true, passive: true });
+        window.addEventListener("resize", () => { gyroBase = null; });
+        window.addEventListener("orientationchange", () => { gyroBase = null; });
+
         let t = 0;
 
         // ---- PERF TIER ----
