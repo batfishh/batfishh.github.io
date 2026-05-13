@@ -119,6 +119,64 @@
             .card { max-width: 44vw; padding: 12px 14px; font-size: 11px; }
             .card h1 { font-size: 16px; }
         }
+
+        /* ---- CONTACT OVERLAY ---- */
+        #contact-overlay {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.7s ease;
+        }
+        #contact-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+        #contact-content {
+            text-align: center;
+            font-family: -apple-system, system-ui, sans-serif;
+        }
+        #contact-content h1 {
+            font-size: 44px;
+            font-weight: 300;
+            letter-spacing: -1px;
+            color: #fff;
+            margin: 0 0 8px;
+        }
+        #contact-content .sub {
+            font-size: 13px;
+            color: rgba(150, 160, 220, 0.55);
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            margin: 0 0 52px;
+        }
+        .c-link {
+            display: block;
+            font-size: 17px;
+            color: rgba(200, 210, 255, 0.8);
+            text-decoration: none;
+            margin: 16px 0;
+            letter-spacing: 0.3px;
+            transition: color 0.2s;
+        }
+        .c-link:hover { color: #fff; }
+        #contact-esc {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            font-family: -apple-system, system-ui, sans-serif;
+            color: rgba(130, 130, 160, 0.35);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 
@@ -184,6 +242,17 @@
         <a href="#">GitHub</a>
         &nbsp;·&nbsp;
         <a href="#">LinkedIn</a>
+    </div>
+
+    <div id="contact-overlay">
+        <div id="contact-content">
+            <h1>Ashwin Singh</h1>
+            <p class="sub">Full-Stack Developer</p>
+            <a class="c-link" href="mailto:ashwin27live@gmail.com">ashwin27live@gmail.com</a>
+            <a class="c-link" href="https://github.com/batfishh" target="_blank">github.com/batfishh</a>
+            <a class="c-link" href="#" target="_blank">linkedin.com/in/ashwin</a>
+        </div>
+        <div id="contact-esc">esc to close</div>
     </div>
 
     <script>
@@ -470,6 +539,35 @@
                 const dy = bh.y - cy;
                 const dist = Math.hypot(dx, dy) || 0.001;
 
+                // Suck-into-black-hole animation (triggered by G key)
+                if (c.sucking) {
+                    const force = 700 / (Math.max(dist, 5) * Math.max(dist, 5));
+                    c.vx += (dx / dist) * force;
+                    c.vy += (dy / dist) * force;
+                    c.vx *= 0.88;
+                    c.vy *= 0.88;
+                    c.x += c.vx;
+                    c.y += c.vy;
+                    c.suckSpin = (c.suckSpin || 0) + Math.min(20, 320 / (dist + 8));
+                    const scale = Math.max(0, Math.min(1, (dist - 12) / 170));
+                    c.el.style.opacity = scale.toFixed(3);
+                    c.el.style.transform = `translate(${c.x}px,${c.y}px) rotate(${c.suckSpin}deg) scale(${scale})`;
+                    if (dist < 18) {
+                        c.el.style.visibility = 'hidden';
+                        c.sucking = false;
+                        showContactOverlay();
+                    }
+                    continue;
+                }
+
+                // Trigger contact page when mouse (BH) is dragged over the contact card
+                if (c.el.id === 'card-contact' && !c.sucking && !contactOverlay.classList.contains('visible')) {
+                    if (mouse.x > c.x && mouse.x < c.x + c.w && mouse.y > c.y && mouse.y < c.y + c.h) {
+                        c.sucking = true;
+                        c.suckSpin = 0;
+                    }
+                }
+
                 // Gravity — clamped so it doesn't explode at very short range
                 const fDist = Math.max(dist, MIN_DIST);
                 const force = G_CARDS / (fDist * fDist);
@@ -537,6 +635,7 @@
             for (let i = 0; i < cardObjs.length; i++) {
                 for (let j = i + 1; j < cardObjs.length; j++) {
                     const a = cardObjs[i], b = cardObjs[j];
+                    if (a.sucking || b.sucking) continue;
 
                     const acx = a.x + a.w / 2,  acy = a.y + a.h / 2;
                     const bcx = b.x + b.w / 2,  bcy = b.y + b.h / 2;
@@ -1086,6 +1185,37 @@
         // score has already been earned by prior visits.
         window.addEventListener("load", () => { ensureAudio(); audioCtx.resume().catch(() => { }); });
         window.addEventListener("mousemove", () => { ensureAudio(); audioCtx.resume().catch(() => { }); }, { once: true });
+
+        // ---- CONTACT OVERLAY ----
+        const contactOverlay = document.getElementById('contact-overlay');
+
+        function showContactOverlay() {
+            setTimeout(() => contactOverlay.classList.add('visible'), 100);
+        }
+
+        function closeContactOverlay() {
+            contactOverlay.classList.remove('visible');
+            setTimeout(() => {
+                const c = cardObjs.find(o => o.el.id === 'card-contact');
+                if (!c) return;
+                const pad = 40;
+                c.x = pad + Math.random() * (width - c.w - pad * 2);
+                c.y = pad + Math.random() * (height - c.h - pad * 2);
+                c.vx = (Math.random() - 0.5) * 0.35;
+                c.vy = (Math.random() - 0.5) * 0.35;
+                c.suckSpin = 0;
+                c.driftCooldown = 4000 + Math.random() * 8000;
+                c.drifting = false;
+                c.el.style.opacity = '1';
+                c.el.style.visibility = 'visible';
+            }, 750);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && contactOverlay.classList.contains('visible')) {
+                closeContactOverlay();
+            }
+        });
 
         // ---- CLICK: start audio + cycle ring colour + spawn shockwaves + boom ----
         window.addEventListener("click", () => {
