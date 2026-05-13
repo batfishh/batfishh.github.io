@@ -43,12 +43,148 @@
             text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
             z-index: 10;
         }
+
+        /* ---- PORTFOLIO LAYER ---- */
+        .card {
+            position: fixed;
+            left: 0; top: 0;
+            will-change: transform;
+            background: rgba(6, 3, 22, 0.78);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(110, 80, 255, 0.25);
+            border-radius: 16px;
+            padding: 18px 22px;
+            color: rgba(210, 215, 255, 0.92);
+            font-family: -apple-system, system-ui, sans-serif;
+            box-shadow: 0 0 32px rgba(70, 30, 200, 0.14), inset 0 0 18px rgba(100, 70, 255, 0.05);
+            z-index: 20;
+            max-width: 240px;
+            visibility: hidden;
+            overflow: hidden;
+        }
+        /* Inner gradient highlight — top-left corner bloom */
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 15px;
+            background: linear-gradient(135deg, rgba(140,100,255,0.11) 0%, transparent 52%);
+            pointer-events: none;
+        }
+        /* Top-left corner bracket */
+        .card::after {
+            content: '';
+            position: absolute;
+            top: 7px; left: 7px;
+            width: 13px; height: 13px;
+            border-top: 1.5px solid rgba(180, 140, 255, 0.75);
+            border-left: 1.5px solid rgba(180, 140, 255, 0.75);
+            border-radius: 2px 0 0 0;
+            pointer-events: none;
+        }
+        /* Bottom-right corner bracket (added by JS) */
+        .card-corner-br {
+            position: absolute;
+            bottom: 7px; right: 7px;
+            width: 13px; height: 13px;
+            border-bottom: 1.5px solid rgba(180, 140, 255, 0.55);
+            border-right: 1.5px solid rgba(180, 140, 255, 0.55);
+            border-radius: 0 0 2px 0;
+            pointer-events: none;
+        }
+        .card h1 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: #fff; }
+        .card h2 { margin: 0 0 10px; font-size: 13px; font-weight: 400; color: rgba(160, 170, 255, 0.8); letter-spacing: 1px; text-transform: uppercase; }
+        .card h3 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: rgba(140, 120, 255, 0.9); text-transform: uppercase; letter-spacing: 1.2px; }
+        .card p  { margin: 0; font-size: 13px; line-height: 1.55; color: rgba(190, 195, 230, 0.82); }
+        .card a  { color: rgba(150, 130, 255, 0.9); text-decoration: none; font-size: 13px; }
+        .card a:hover { color: #fff; }
+        .tag {
+            display: inline-block;
+            background: rgba(100, 70, 255, 0.18);
+            border: 1px solid rgba(110, 80, 255, 0.28);
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 11px;
+            color: rgba(180, 170, 255, 0.85);
+            margin: 3px 3px 0 0;
+        }
+        .divider { border: none; border-top: 1px solid rgba(100, 80, 255, 0.15); margin: 10px 0; }
+        .proj-link { display: block; margin-top: 8px; font-size: 12px; }
+
+        #card-hero    { max-width: 280px; text-align: center; }
+        #card-contact { max-width: 300px; text-align: center; }
+
+        @media (max-width: 600px) {
+            .card { max-width: 44vw; padding: 12px 14px; font-size: 11px; }
+            .card h1 { font-size: 16px; }
+        }
     </style>
 </head>
 
 <body>
     <canvas id="canvas"></canvas>
     <div id="gyroHint">tap to enable motion</div>
+
+    <!-- ---- PORTFOLIO CARDS ---- -->
+    <div class="card" id="card-hero">
+        <h1>Ashwin Singh</h1>
+        <h2>Full-Stack Developer</h2>
+        <p>Building things that live on the internet. Into systems, interactions, and the occasional black hole.</p>
+    </div>
+
+    <div class="card" id="card-about">
+        <h3>About</h3>
+        <hr class="divider">
+        <p>Computer Science student with a love for creative engineering. I like pushing browsers past their comfort zone.</p>
+        <hr class="divider">
+        <span class="tag">TypeScript</span>
+        <span class="tag">React</span>
+        <span class="tag">Node.js</span>
+        <span class="tag">Python</span>
+        <span class="tag">WebGL</span>
+        <span class="tag">Canvas API</span>
+    </div>
+
+    <div class="card" id="card-proj-1">
+        <h3>Project</h3>
+        <hr class="divider">
+        <p><strong style="color:#fff">Black Hole</strong></p>
+        <p>Interactive gravitational simulation — accretion disk, Doppler beaming, generative music engine.</p>
+        <span class="tag">Canvas</span>
+        <span class="tag">Web Audio</span>
+        <a class="proj-link" href="#">↗ batfishh.github.io</a>
+    </div>
+
+    <div class="card" id="card-proj-2">
+        <h3>Project</h3>
+        <hr class="divider">
+        <p><strong style="color:#fff">Project Alpha</strong></p>
+        <p>A real-time collaboration tool with live cursors and conflict-free document sync.</p>
+        <span class="tag">React</span>
+        <span class="tag">WebSockets</span>
+        <a class="proj-link" href="#">↗ github.com</a>
+    </div>
+
+    <div class="card" id="card-proj-3">
+        <h3>Project</h3>
+        <hr class="divider">
+        <p><strong style="color:#fff">Project Beta</strong></p>
+        <p>CLI tool for scaffolding and deploying full-stack apps with one command.</p>
+        <span class="tag">Node.js</span>
+        <span class="tag">CLI</span>
+        <a class="proj-link" href="#">↗ github.com</a>
+    </div>
+
+    <div class="card" id="card-contact">
+        <h3>Get in touch</h3>
+        <hr class="divider">
+        <a href="mailto:ashwin27live@gmail.com">ashwin27live@gmail.com</a>
+        &nbsp;·&nbsp;
+        <a href="#">GitHub</a>
+        &nbsp;·&nbsp;
+        <a href="#">LinkedIn</a>
+    </div>
 
     <script>
         // ---- CANVAS ----
@@ -273,11 +409,192 @@
 
         function lerp(a, b, f) { return a + (b - a) * f; }
 
+        // ---- CARD GRAVITY PHYSICS ----
+        // Each card is a point mass attracted to `bh` via F = G/r².
+        // A soft repulsion floor at minDist prevents collision with the event horizon.
+        // A small tangential initial velocity creates loose orbital drift.
+        const G_CARDS   = 55;    // gravitational strength
+        const MIN_DIST  = 220;   // closest a card centre can get to bh centre (px)
+        const DAMPING   = 0.994; // very light drag — preserves orbital energy
+        const MAX_SPEED = 2.8;
+
+        let cardObjs = [];
+
+        function initCards() {
+            document.querySelectorAll('.card').forEach(el => {
+                const w = el.offsetWidth || 220;
+                const h = el.offsetHeight || 120;
+
+                // Spawn randomly, outside a centre exclusion zone
+                let x, y, dist;
+                const pad = 24;
+                const minSpawn = Math.min(width, height) * 0.32;
+                let attempts = 0;
+                do {
+                    x = pad + Math.random() * (width  - w - pad * 2);
+                    y = pad + Math.random() * (height - h - pad * 2);
+                    dist = Math.hypot(x + w/2 - width/2, y + h/2 - height/2);
+                    attempts++;
+                } while (dist < minSpawn && attempts < 40);
+
+                // Tangential velocity so cards drift rather than fall straight in
+                const angle    = Math.atan2(y + h/2 - height/2, x + w/2 - width/2);
+                const tangent  = angle + Math.PI / 2;
+                const initSpd  = 0.15 + Math.random() * 0.25;
+                const dir      = Math.random() < 0.5 ? 1 : -1;
+
+                cardObjs.push({
+                    el, w, h, x, y,
+                    vx: Math.cos(tangent) * initSpd * dir,
+                    vy: Math.sin(tangent) * initSpd * dir,
+                    driftCooldown: 3000 + Math.random() * 9000,
+                    drifting: false,
+                    driftRemaining: 0,
+                });
+
+                // Bottom-right corner bracket element
+                const br = document.createElement('div');
+                br.className = 'card-corner-br';
+                el.appendChild(br);
+
+                el.style.visibility = 'visible';
+                el.style.transform = `translate(${x}px,${y}px)`;
+            });
+        }
+
+        function updateCards(dt) {
+            for (const c of cardObjs) {
+                const cx = c.x + c.w / 2;
+                const cy = c.y + c.h / 2;
+                const dx = bh.x - cx;
+                const dy = bh.y - cy;
+                const dist = Math.hypot(dx, dy) || 0.001;
+
+                // Gravity — clamped so it doesn't explode at very short range
+                const fDist = Math.max(dist, MIN_DIST);
+                const force = G_CARDS / (fDist * fDist);
+                c.vx += (dx / dist) * force;
+                c.vy += (dy / dist) * force;
+
+                // Random idle drift: periodically bleed orbital energy so the card
+                // slowly spirals inward, gets repulsed, and resumes orbit
+                if (c.drifting) {
+                    c.driftRemaining -= dt;
+                    if (c.driftRemaining <= 0) {
+                        c.drifting = false;
+                        c.driftCooldown = 6000 + Math.random() * 14000;
+                    }
+                    c.vx += (dx / dist) * 0.055;
+                    c.vy += (dy / dist) * 0.055;
+                } else {
+                    c.driftCooldown -= dt;
+                    if (c.driftCooldown <= 0) {
+                        c.drifting = true;
+                        c.driftRemaining = 1400 + Math.random() * 2000;
+                    }
+                }
+
+                // Repulsion floor — elastic push away below minDist
+                if (dist < MIN_DIST) {
+                    const push = ((MIN_DIST - dist) / MIN_DIST) * 1.1;
+                    c.vx -= (dx / dist) * push;
+                    c.vy -= (dy / dist) * push;
+                }
+
+                c.vx *= DAMPING;
+                c.vy *= DAMPING;
+
+                const spd = Math.hypot(c.vx, c.vy);
+                if (spd > MAX_SPEED) { c.vx = c.vx / spd * MAX_SPEED; c.vy = c.vy / spd * MAX_SPEED; }
+
+                c.x += c.vx;
+                c.y += c.vy;
+
+                // Soft screen-edge bounce
+                if (c.x < 0)           { c.x = 0;            c.vx =  Math.abs(c.vx) * 0.45; }
+                if (c.y < 0)           { c.y = 0;            c.vy =  Math.abs(c.vy) * 0.45; }
+                if (c.x + c.w > width) { c.x = width  - c.w; c.vx = -Math.abs(c.vx) * 0.45; }
+                if (c.y + c.h > height){ c.y = height - c.h; c.vy = -Math.abs(c.vy) * 0.45; }
+
+                // Banking tilt from vertical velocity
+                const tiltDeg = Math.max(-10, Math.min(10, c.vy * 2.2));
+
+                // Dynamic glow and border colour driven by proximity to the black hole
+                const proximity = Math.max(0, 1 - dist / (Math.max(width, height) * 0.55));
+                const rh = ringHues[ringHueIdx];
+                c.el.style.borderColor = `hsla(${rh},80%,${50 + proximity * 28}%,${0.22 + proximity * 0.5})`;
+                c.el.style.boxShadow   = `0 0 ${22 + proximity * 55}px hsla(${rh},100%,62%,${0.12 + proximity * 0.42}), inset 0 0 ${8 + proximity * 16}px rgba(100,70,255,${0.04 + proximity * 0.14})`;
+                c.el.style.transform   = `translate(${c.x}px,${c.y}px) rotate(${tiltDeg}deg)`;
+            }
+        }
+
+        // AABB separation — resolves rectangle overlaps between card pairs.
+        // Uses SAT: find the minimum overlap axis and apply a velocity impulse + small
+        // positional nudge along it so cards never visually intersect.
+        const CARD_GAP = 10; // minimum gap to maintain between cards (px)
+
+        function separateCards() {
+            for (let i = 0; i < cardObjs.length; i++) {
+                for (let j = i + 1; j < cardObjs.length; j++) {
+                    const a = cardObjs[i], b = cardObjs[j];
+
+                    const acx = a.x + a.w / 2,  acy = a.y + a.h / 2;
+                    const bcx = b.x + b.w / 2,  bcy = b.y + b.h / 2;
+
+                    const dx = bcx - acx;
+                    const dy = bcy - acy;
+
+                    const ox = (a.w / 2 + b.w / 2 + CARD_GAP) - Math.abs(dx);
+                    const oy = (a.h / 2 + b.h / 2 + CARD_GAP) - Math.abs(dy);
+
+                    if (ox <= 0 || oy <= 0) continue; // no overlap
+
+                    // Resolve along the axis with the smallest penetration depth
+                    if (ox < oy) {
+                        const sign = dx >= 0 ? 1 : -1;
+                        // Positional correction (avoids slow drift-through)
+                        const corr = ox * 0.3;
+                        a.x -= sign * corr * 0.5;
+                        b.x += sign * corr * 0.5;
+                        // Velocity impulse
+                        const imp = ox * 0.12;
+                        a.vx -= sign * imp;
+                        b.vx += sign * imp;
+                    } else {
+                        const sign = dy >= 0 ? 1 : -1;
+                        const corr = oy * 0.3;
+                        a.y -= sign * corr * 0.5;
+                        b.y += sign * corr * 0.5;
+                        const imp = oy * 0.12;
+                        a.vy -= sign * imp;
+                        b.vy += sign * imp;
+                    }
+                }
+            }
+        }
+
+        // Init after layout is painted so offsetWidth/Height are real
+        requestAnimationFrame(() => requestAnimationFrame(initCards));
+        window.addEventListener('resize', () => {
+            cardObjs.forEach(c => {
+                c.x = Math.min(c.x, width  - c.w);
+                c.y = Math.min(c.y, height - c.h);
+            });
+        });
+
+        let prevFrameTime = performance.now();
+
         function draw() {
+            const now = performance.now();
+            const dt = Math.min(now - prevFrameTime, 50);
+            prevFrameTime = now;
+
             t += 0.01;
             bh.x = lerp(bh.x, mouse.x, 0.055);
             bh.y = lerp(bh.y, mouse.y, 0.055);
             ehScale = lerp(ehScale, ehScaleTarget, 0.1);
+            updateCards(dt);
+            separateCards();
 
             // Shrink the black hole + disk + jets on small screens so it occupies
             // roughly the same fraction of the viewport as it does on desktop.
