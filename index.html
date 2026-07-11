@@ -3,8 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>My Portfolio — A Tiny Adventure</title>
-<meta name="description" content="An interactive GBA-style portfolio. Walk around my room and discover my work.">
+<title>Ashwin — Full Stack Engineer · A Tiny Adventure</title>
+<meta name="description" content="Ashwin's interactive GBA-style portfolio. Senior Software Engineer @ Yara International — NestJS, React, PostgreSQL, microservices. Walk around and explore!">
+<meta name="theme-color" content="#0e1220">
+<meta property="og:title" content="Ashwin — Full Stack Engineer">
+<meta property="og:description" content="A playable pixel-art portfolio. Use the arrow keys to walk around my room and discover my work.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🎮</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -523,6 +528,29 @@ const SPR = {
            buildSprite(HEAD_SIDE, BODY_SIDE_STEP, true),
            buildSprite(HEAD_SIDE, BODY_SIDE_STAND, true) ],
 };
+
+/* ---------------- Favicon: the hero's face, generated from the sprite ---------------- */
+(function makeFavicon(){
+  const c = document.createElement("canvas");
+  c.width = 32; c.height = 32;
+  const g = c.getContext("2d");
+  g.imageSmoothingEnabled = false;
+  /* rounded GBA-frame backdrop so it pops on both light & dark tab bars */
+  g.fillStyle = "#3c4468";
+  if (g.roundRect){ g.beginPath(); g.roundRect(0,0,32,32,7); g.fill(); }
+  else g.fillRect(0,0,32,32);
+  g.fillStyle = "#2a3050";
+  if (g.roundRect){ g.beginPath(); g.roundRect(2,2,28,28,5); g.fill(); }
+  else g.fillRect(2,2,28,28);
+  /* the head = top 12 rows of the down-facing sprite, scaled 2x (16:12 → 28:21) */
+  g.drawImage(SPR.down[0], 0, 0, 16, 12, 2, 5, 28, 21);
+  const url = c.toDataURL("image/png");
+  for (const rel of ["icon", "apple-touch-icon"]){
+    const l = document.createElement("link");
+    l.rel = rel; l.href = url;
+    document.head.appendChild(l);
+  }
+})();
 
 /* ---------------- Room rendering (pre-baked background) ---------------- */
 const bg = document.createElement("canvas");
