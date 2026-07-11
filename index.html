@@ -299,7 +299,8 @@ const CONTENT = {
     title: "FRIENDS",
     pages: [
       "\"Hey there! We are ASHWIN's friends!\"",
-      "\"We love rock climbing, hiking and board games!\""
+      "\"We love rock climbing, hiking and board games!\"",
+      "\"...He always brings the coffee.\""
     ]
   },
 
@@ -616,18 +617,18 @@ const TALL_GIRL_BODY = [            // taller & slimmer (22px total)
   "....KKK..KKK....",
   "................",
 ];
-const BOY_HEAD = [                  // short hair + beard
+const BOY_HEAD = [                  // short hair + full beard (E = beard)
   "....KKKKKKKK....",
   "...KAAAAAAAAK...",
   "..KAAAAAAAAAAK..",
   "..KAAAAAAAAAAK..",
-  "..KASSSSSSSSAK..",
-  ".KSSSSSSSSSSSSK.",
-  ".KSSKKSSSSKKSSK.",
-  ".KAAKKSSSSKKAAK.",
-  ".KAASSSssSSSAAK.",
-  ".KAAAASSSSAAAAK.",
-  "..KKAAAAAAAAKK..",
+  ".KAASSSSSSSSAAK.",
+  ".KASKKSSSSKKSAK.",
+  ".KESKKSSSSKKSEK.",
+  ".KEESSEEEESSEEK.",
+  ".KEEEESSSSEEEEK.",
+  ".KEEEEEEEEEEEEK.",
+  "..KKEEEEEEEEKK..",
 ];
 const BOY_BODY = [                  // tall (22px total)
   "..KGGGGGGGGGGK..",
@@ -645,14 +646,15 @@ const BOY_BODY = [                  // tall (22px total)
 
 function npcPal(over){ return Object.assign({}, PAL, over); }
 const NPCS = [
-  { x:11, y:4, spr: buildSprite(GIRL_HEAD, GIRL_BODY, false, npcPal({      // girl 1: fair
-      S:"#f8d0b0", s:"#d8a878", H:"#5c3a22", D:"#d868a0", d:"#a84878" })) },
-  { x:12, y:4, spr: buildSprite(GIRL_HEAD, GIRL_BODY, false, npcPal({      // girl 2: slightly darker
+  { x:11, y:4, spr: buildSprite(GIRL_HEAD, GIRL_BODY, false, npcPal({      // girl 1: fair, black hair
+      S:"#f8d0b0", s:"#d8a878", H:"#262230", D:"#d868a0", d:"#a84878" })) },
+  { x:12, y:4, spr: buildSprite(GIRL_HEAD, GIRL_BODY, false, npcPal({      // girl 2: slightly darker, black hair
       S:"#d09058", s:"#a86c3c", H:"#262230", D:"#38a098", d:"#237068" })) },
-  { x:13, y:4, spr: buildSprite(PONY_HEAD, TALL_GIRL_BODY, false, npcPal({ // girl 3: tall, slim, ponytail
-      S:"#f8d0b0", s:"#d8a878", H:"#8a4a2a", h:"#5c2f1a", D:"#9068c8", d:"#684898" })) },
-  { x:12, y:5, spr: buildSprite(BOY_HEAD, BOY_BODY, false, npcPal({        // boy 1: tall, bearded
-      S:"#e8b088", s:"#c08858", A:"#3a2a1e", G:"#48a058", g:"#2f7a3a", J:"#3a5a8c" })) },
+  { x:13, y:4, spr: buildSprite(PONY_HEAD, TALL_GIRL_BODY, false, npcPal({ // girl 3: tall, slim, black ponytail
+      S:"#f8d0b0", s:"#d8a878", H:"#262230", h:"#484055", D:"#9068c8", d:"#684898" })) },
+  { x:12, y:5, spr: buildSprite(BOY_HEAD, BOY_BODY, false, npcPal({        // boy 1: tall, bearded, yellow shirt
+      S:"#e8b088", s:"#c08858", A:"#262230", E:"#3c3444",
+      G:"#f0c020", g:"#b8880c", J:"#3a5a8c" })) },
 ];
 function drawNPC(n){
   ctx.drawImage(n.spr, n.x*TILE, n.y*TILE - (n.spr.height - 16) - 1);
