@@ -295,12 +295,17 @@ const CONTENT = {
     ]
   },
 
-  mat: {         // ← the doormat at the bottom
-    title: "RESUME",
+  friends: {     // ← the group of friends by the right wall
+    title: "FRIENDS",
     pages: [
-      "Something is written on the mat...",
-      "\"Grab a copy of my resume at\nashwin.dev/resume.pdf\"\n\n(Replace this with your real link!)"
+      "\"Hey there! We are ASHWIN's friends!\"",
+      "\"We love rock climbing, hiking and board games!\""
     ]
+  },
+
+  bike: {        // ← the bearded friend's motorcycle
+    title: "MOTORCYCLE",
+    pages: ["It's his trusty motorcycle.\nIt has seen many mountain roads."]
   },
 
   bed: {         // ← easter egg
@@ -370,6 +375,8 @@ const OBJECTS = [
   { key:"plant",     tiles:[[14,2]] },
   { key:"bed",       tiles:[[1,8],[1,9]] },
   { key:"guitar",    tiles:[[3,9]] },
+  { key:"friends",   tiles:[[11,4],[12,4],[13,4],[12,5]] },  // the 4 NPCs
+  { key:"bike",      tiles:[[13,5],[14,5]] },                // boy's motorcycle
   { key:"coffee",    tiles:[[12,9],[13,9]] },
   { key:"mat",       tiles:[[7,10],[8,10]], flat:true, walkable:true },
 ];
@@ -493,21 +500,23 @@ const BODY_SIDE_STEP = [
   "................",
 ];
 
-function buildSprite(head, body, mirror){
-  const c = document.createElement("canvas");
-  c.width = 16; c.height = 20;
-  const g = c.getContext("2d");
+function buildSprite(head, body, mirror, pal){
+  const P = pal || PAL;
   const rows = head.concat(body);
-  for (let y=0; y<20 && y<rows.length; y++){
+  const H = rows.length;
+  const c = document.createElement("canvas");
+  c.width = 16; c.height = H;
+  const g = c.getContext("2d");
+  for (let y=0; y<H; y++){
     const row = (rows[y]||"").padEnd(16, ".");
     for (let x=0; x<16; x++){
       const ch = row[x];
-      if (ch !== "." && PAL[ch]){ g.fillStyle = PAL[ch]; g.fillRect(x, y, 1, 1); }
+      if (ch !== "." && P[ch]){ g.fillStyle = P[ch]; g.fillRect(x, y, 1, 1); }
     }
   }
   if (!mirror) return c;
   const m = document.createElement("canvas");
-  m.width = 16; m.height = 20;
+  m.width = 16; m.height = H;
   const mg = m.getContext("2d");
   mg.translate(16,0); mg.scale(-1,1); mg.drawImage(c,0,0);
   return m;
@@ -551,6 +560,103 @@ const SPR = {
     document.head.appendChild(l);
   }
 })();
+
+/* ---------------- Friend NPCs ----------------
+   Extra palette letters: H hair · D dress · d dress shade
+   A hair+beard · G shirt · g shirt shade · J jeans        */
+const GIRL_HEAD = [
+  "....KKKKKKKK....",
+  "...KHHHHHHHHK...",
+  "..KHHHHHHHHHHK..",
+  "..KHHHHHHHHHHK..",
+  ".KHHSSSSSSSSHHK.",
+  ".KHHSSSSSSSSHHK.",
+  ".KHSKKSSSSKKSHK.",
+  ".KHSKKSSSSKKSHK.",
+  ".KHHSSSssSSSHHK.",
+  ".KHHKSSSSSSKHHK.",
+  "..KK.KKKKKK.KK..",
+];
+const GIRL_BODY = [                 // player height (20px total)
+  "..KDDDDDDDDDDK..",
+  ".KDDDDDDDDDDDDK.",
+  ".KSKDDDDDDDDKSK.",
+  ".KKKDDDDDDDDKKK.",
+  "..KDddddddddDK..",
+  "...KSSK..KSSK...",
+  "...KFFK..KFFK...",
+  "...KKKK..KKKK...",
+  "................",
+];
+const PONY_HEAD = [                 // girl 3: high ponytail (+3px of height)
+  "......KKKK......",
+  ".....KHHHHK.....",
+  ".....KhhhhK.....",
+  "....KKKKKKKK....",
+  "...KHHHHHHHHK...",
+  "..KHHHHHHHHHHK..",
+  ".KHHSSSSSSSSHHK.",
+  ".KHHSSSSSSSSHHK.",
+  ".KHSKKSSSSKKSHK.",
+  ".KHSKKSSSSKKSHK.",
+  ".KHHSSSssSSSHHK.",
+  ".KHHKSSSSSSKHHK.",
+  "..KK.KKKKKK.KK..",
+];
+const TALL_GIRL_BODY = [            // taller & slimmer (22px total)
+  "...KDDDDDDDDK...",
+  "..KDDDDDDDDDDK..",
+  "..KSKDDDDDDKSK..",
+  "..KKKDDDDDDKKK..",
+  "...KDDDDDDDDK...",
+  "...KDddddddDK...",
+  "....KSK..KSK....",
+  "....KSK..KSK....",
+  "....KFK..KFK....",
+  "....KKK..KKK....",
+  "................",
+];
+const BOY_HEAD = [                  // short hair + beard
+  "....KKKKKKKK....",
+  "...KAAAAAAAAK...",
+  "..KAAAAAAAAAAK..",
+  "..KAAAAAAAAAAK..",
+  "..KASSSSSSSSAK..",
+  ".KSSSSSSSSSSSSK.",
+  ".KSSKKSSSSKKSSK.",
+  ".KAAKKSSSSKKAAK.",
+  ".KAASSSssSSSAAK.",
+  ".KAAAASSSSAAAAK.",
+  "..KKAAAAAAAAKK..",
+];
+const BOY_BODY = [                  // tall (22px total)
+  "..KGGGGGGGGGGK..",
+  ".KGGGGGGGGGGGGK.",
+  ".KSKGGGGGGGGKSK.",
+  ".KKKGggggggGKKK.",
+  "...KJJJKKJJJK...",
+  "...KJJJK.KJJK...",
+  "...KJJJK.KJJK...",
+  "...KJJJK.KJJK...",
+  "...KFFFK.KFFK...",
+  "...KKKKK.KKKK...",
+  "................",
+];
+
+function npcPal(over){ return Object.assign({}, PAL, over); }
+const NPCS = [
+  { x:11, y:4, spr: buildSprite(GIRL_HEAD, GIRL_BODY, false, npcPal({      // girl 1: fair
+      S:"#f8d0b0", s:"#d8a878", H:"#5c3a22", D:"#d868a0", d:"#a84878" })) },
+  { x:12, y:4, spr: buildSprite(GIRL_HEAD, GIRL_BODY, false, npcPal({      // girl 2: slightly darker
+      S:"#d09058", s:"#a86c3c", H:"#262230", D:"#38a098", d:"#237068" })) },
+  { x:13, y:4, spr: buildSprite(PONY_HEAD, TALL_GIRL_BODY, false, npcPal({ // girl 3: tall, slim, ponytail
+      S:"#f8d0b0", s:"#d8a878", H:"#8a4a2a", h:"#5c2f1a", D:"#9068c8", d:"#684898" })) },
+  { x:12, y:5, spr: buildSprite(BOY_HEAD, BOY_BODY, false, npcPal({        // boy 1: tall, bearded
+      S:"#e8b088", s:"#c08858", A:"#3a2a1e", G:"#48a058", g:"#2f7a3a", J:"#3a5a8c" })) },
+];
+function drawNPC(n){
+  ctx.drawImage(n.spr, n.x*TILE, n.y*TILE - (n.spr.height - 16) - 1);
+}
 
 /* ---------------- Room rendering (pre-baked background) ---------------- */
 const bg = document.createElement("canvas");
@@ -735,6 +841,61 @@ function drawGuitar(g, tx, ty){          // acoustic guitar on a stand (tall)
   tilePx(g,"#5c3a20",tx,ty,2,12,12,2);   // stand base
   tilePx(g,"#3e2814",tx,ty,2,13,12,1);
 }
+function drawBike(g, tx, ty){            // 2-wide motorcycle, side view facing left
+  /* ground shadow */
+  tilePx(g,"#c8a870",tx,ty,2,14,28,2);
+  /* front wheel (left) */
+  tilePx(g,"#20242c",tx,ty,3,6,9,9);     // tire
+  tilePx(g,"#12151c",tx,ty,4,7,7,7);     // tread
+  tilePx(g,"#4a5060",tx,ty,5,8,5,5);     // rim
+  tilePx(g,"#8a92a2",tx,ty,6,9,3,3);     // hub
+  tilePx(g,"#20242c",tx,ty,7,10,1,1);    // axle
+  /* rear wheel (right) */
+  tilePx(g,"#20242c",tx,ty,21,6,9,9);
+  tilePx(g,"#12151c",tx,ty,22,7,7,7);
+  tilePx(g,"#4a5060",tx,ty,23,8,5,5);
+  tilePx(g,"#8a92a2",tx,ty,24,9,3,3);
+  tilePx(g,"#20242c",tx,ty,25,10,1,1);
+  /* front fork (angled) + handlebar + mirror */
+  tilePx(g,"#586078",tx,ty,7,5,2,4);
+  tilePx(g,"#586078",tx,ty,8,3,2,3);
+  tilePx(g,"#20242c",tx,ty,5,2,6,2);     // handlebar
+  tilePx(g,"#20242c",tx,ty,4,2,1,1);     // grip end
+  tilePx(g,"#8a92a2",tx,ty,6,0,2,2);     // mirror
+  tilePx(g,"#ffd83c",tx,ty,5,4,3,2);     // headlight
+  tilePx(g,"#fff0a0",tx,ty,5,4,1,1);
+  /* fenders */
+  tilePx(g,"#e8b820",tx,ty,3,4,9,2);     // front fender (yellow to match tank)
+  tilePx(g,"#a87f0c",tx,ty,3,5,9,1);
+  tilePx(g,"#e8b820",tx,ty,21,4,9,2);    // rear fender
+  tilePx(g,"#a87f0c",tx,ty,21,5,9,1);
+  tilePx(g,"#d84840",tx,ty,29,5,1,1);    // taillight
+  /* frame spine */
+  tilePx(g,"#20242c",tx,ty,9,8,15,2);
+  /* YELLOW fuel tank */
+  tilePx(g,"#20242c",tx,ty,10,3,10,5);   // outline
+  tilePx(g,"#f0c020",tx,ty,11,4,8,3);    // tank
+  tilePx(g,"#fce27a",tx,ty,12,4,4,1);    // glint
+  tilePx(g,"#b8880c",tx,ty,11,6,8,1);    // underside shade
+  tilePx(g,"#20242c",tx,ty,14,3,2,1);    // fuel cap
+  /* seat with stitch line */
+  tilePx(g,"#20242c",tx,ty,19,2,8,3);
+  tilePx(g,"#3a3e48",tx,ty,20,3,6,2);
+  tilePx(g,"#565c68",tx,ty,20,3,6,1);
+  /* engine block with cooling fins */
+  tilePx(g,"#20242c",tx,ty,12,8,8,5);
+  tilePx(g,"#788090",tx,ty,13,9,6,4);
+  tilePx(g,"#4a5060",tx,ty,13,10,6,1);   // fin
+  tilePx(g,"#4a5060",tx,ty,13,12,6,1);   // fin
+  /* chain + exhaust pipe with chrome tip */
+  tilePx(g,"#12151c",tx,ty,19,11,4,1);   // chain
+  tilePx(g,"#586078",tx,ty,19,12,9,2);   // pipe
+  tilePx(g,"#a8aeb8",tx,ty,20,12,7,1);   // shine
+  tilePx(g,"#20242c",tx,ty,28,11,2,3);   // muffler tip
+  /* kickstand */
+  tilePx(g,"#20242c",tx,ty,15,13,1,2);
+  tilePx(g,"#20242c",tx,ty,14,14,1,1);
+}
 function drawCoffee(g, tx, ty){          // 2-wide coffee station
   tilePx(g,"#20242c",tx,ty,0,7,32,9);    // counter outline
   tilePx(g,"#b08050",tx,ty,1,7,30,8);    // counter body
@@ -776,6 +937,7 @@ function bakeBackground(){
     else if (o.key==="plant") drawPlant(bgx,x,y);
     else if (o.key==="bed") drawBed(bgx,x,y);
     else if (o.key==="guitar") drawGuitar(bgx,x,y);
+    else if (o.key==="bike") drawBike(bgx,x,y);
     else if (o.key==="coffee") drawCoffee(bgx,x,y);
     else if (o.key==="mat") drawMat(bgx,x,y);
   }
@@ -1082,6 +1244,9 @@ function render(t){
     }
   }
 
+  /* entities, painter's order: NPCs behind the player first, then player, then NPCs in front */
+  for (const n of NPCS) if (n.y*TILE <= player.py) drawNPC(n);
+
   /* player sprite — walk cycle driven by distance traveled */
   let frame = 0;
   if (player.moving){
@@ -1089,6 +1254,8 @@ function render(t){
     frame = seq[Math.floor(player.animDist / 9) % 4];
   }
   ctx.drawImage(SPR[player.facing][frame], Math.round(player.px), Math.round(player.py) - 5);
+
+  for (const n of NPCS) if (n.y*TILE > player.py) drawNPC(n);
 }
 requestAnimationFrame(loop);
 </script>
