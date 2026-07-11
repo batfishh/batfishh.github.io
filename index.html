@@ -1,1243 +1,1068 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>batfish</title>
-    <meta property="og:title" content="blackholeeeee">
-    <meta property="og:description" content="idk what this is">
-    <meta property="og:image" content="https://raw.githubusercontent.com/batfishh/batfishh.github.io/main/bh.png">
-    <meta property="og:url" content="https://batfishh.github.io/">
-    <meta property="og:type" content="website">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>My Portfolio — A Tiny Adventure</title>
+<meta name="description" content="An interactive GBA-style portfolio. Walk around my room and discover my work.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#232a3a;
+    --box-bg:#f8f8f0;
+    --box-border:#5a6478;
+    --accent:#e04038;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; }
+  body{
+    background:#0e1220;
+    background-image:
+      radial-gradient(circle at 20% 10%, #1a2240 0%, transparent 50%),
+      radial-gradient(circle at 80% 90%, #251a3a 0%, transparent 50%);
+    color:#e8e8f0;
+    font-family:'Press Start 2P', 'Courier New', monospace;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100vh; padding:12px; overflow:hidden;
+  }
 
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="blackholeeeee">
-    <meta name="twitter:description" content="idk what this is">
-    <meta name="twitter:image" content="https://raw.githubusercontent.com/batfishh/batfishh.github.io/main/bh.png">
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: black;
-        }
+  #frame{
+    position:relative;
+    background:#2a3050;
+    border:4px solid #3c4468;
+    border-radius:14px;
+    padding:14px;
+    box-shadow:0 18px 50px rgba(0,0,0,.6), inset 0 2px 0 rgba(255,255,255,.08);
+  }
+  #screenWrap{
+    position:relative;
+    background:#000;
+    border:4px solid #10141f;
+    border-radius:4px;
+    overflow:hidden;
+    line-height:0;
+  }
+  canvas{
+    image-rendering:pixelated;
+    image-rendering:crisp-edges;
+    display:block;
+  }
 
-        canvas {
-            display: block;
-            cursor: none;
-        }
+  /* ---------- Dialog box (FireRed style) ---------- */
+  #dialog{
+    position:absolute; left:2%; right:2%; bottom:2.5%;
+    background:var(--box-bg);
+    border:3px solid var(--box-border);
+    border-radius:6px;
+    box-shadow:0 0 0 3px #f8f8f0, 0 0 0 6px #303848, 0 4px 0 6px rgba(0,0,0,.35);
+    padding:12px 14px 14px;
+    color:var(--ink);
+    display:none;
+    z-index:5;
+  }
+  #dialog.open{ display:block; }
+  #dlgTitle{
+    display:inline-block;
+    font-size:8px;
+    letter-spacing:.5px;
+    color:#fff;
+    background:var(--accent);
+    border:2px solid #8c1f1a;
+    border-radius:3px;
+    padding:4px 7px 3px;
+    margin-bottom:8px;
+  }
+  #dlgText{
+    font-size:10px;
+    line-height:1.9;
+    min-height:58px;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+  #dlgText a{ color:#2050c8; }
+  #dlgNext{
+    position:absolute; right:12px; bottom:8px;
+    color:var(--accent);
+    font-size:10px;
+    animation:bob .5s steps(2) infinite;
+  }
+  @keyframes bob{ 0%{transform:translateY(0)} 100%{transform:translateY(3px)} }
 
-        #gyroHint {
-            position: fixed;
-            bottom: 28px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: rgba(180, 200, 255, 0.85);
-            font-family: -apple-system, system-ui, sans-serif;
-            font-size: 13px;
-            letter-spacing: 0.5px;
-            text-align: center;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.6s ease;
-            text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
-            z-index: 10;
-        }
+  /* ---------- Title overlay ---------- */
+  #title{
+    position:absolute; inset:0; z-index:10;
+    background:linear-gradient(180deg,#182448 0%, #23366b 55%, #101a35 100%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:18px; padding:20px;
+  }
+  #title h1{
+    font-size:clamp(14px, 3.2vw, 22px);
+    color:#ffd83c;
+    text-shadow:2px 2px 0 #a03020, 4px 4px 0 rgba(0,0,0,.45);
+    line-height:1.6;
+  }
+  #title .sub{ font-size:8px; color:#9fb4ff; line-height:1.8; }
+  #pressStart{
+    font-size:10px; color:#fff;
+    animation:blink 1.1s steps(2) infinite;
+    cursor:pointer;
+    border:0; background:none; font-family:inherit;
+    padding:10px 14px;
+  }
+  @keyframes blink{ 0%{opacity:1} 100%{opacity:.15} }
 
-        /* ---- PORTFOLIO LAYER ---- */
-        .card {
-            position: fixed;
-            left: 0; top: 0;
-            will-change: transform;
-            background: rgba(6, 3, 22, 0.78);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border: 1px solid rgba(110, 80, 255, 0.25);
-            border-radius: 16px;
-            padding: 18px 22px;
-            color: rgba(210, 215, 255, 0.92);
-            font-family: -apple-system, system-ui, sans-serif;
-            box-shadow: 0 0 32px rgba(70, 30, 200, 0.14), inset 0 0 18px rgba(100, 70, 255, 0.05);
-            z-index: 20;
-            max-width: 240px;
-            visibility: hidden;
-            overflow: hidden;
-        }
-        /* Inner gradient highlight — top-left corner bloom */
-        .card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: 15px;
-            background: linear-gradient(135deg, rgba(140,100,255,0.11) 0%, transparent 52%);
-            pointer-events: none;
-        }
-        /* Top-left corner bracket */
-        .card::after {
-            content: '';
-            position: absolute;
-            top: 7px; left: 7px;
-            width: 13px; height: 13px;
-            border-top: 1.5px solid rgba(180, 140, 255, 0.75);
-            border-left: 1.5px solid rgba(180, 140, 255, 0.75);
-            border-radius: 2px 0 0 0;
-            pointer-events: none;
-        }
-        /* Bottom-right corner bracket (added by JS) */
-        .card-corner-br {
-            position: absolute;
-            bottom: 7px; right: 7px;
-            width: 13px; height: 13px;
-            border-bottom: 1.5px solid rgba(180, 140, 255, 0.55);
-            border-right: 1.5px solid rgba(180, 140, 255, 0.55);
-            border-radius: 0 0 2px 0;
-            pointer-events: none;
-        }
-        .card h1 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: #fff; }
-        .card h2 { margin: 0 0 10px; font-size: 13px; font-weight: 400; color: rgba(160, 170, 255, 0.8); letter-spacing: 1px; text-transform: uppercase; }
-        .card h3 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: rgba(140, 120, 255, 0.9); text-transform: uppercase; letter-spacing: 1.2px; }
-        .card p  { margin: 0; font-size: 13px; line-height: 1.55; color: rgba(190, 195, 230, 0.82); }
-        .card a  { color: rgba(150, 130, 255, 0.9); text-decoration: none; font-size: 13px; }
-        .card a:hover { color: #fff; }
-        .tag {
-            display: inline-block;
-            background: rgba(100, 70, 255, 0.18);
-            border: 1px solid rgba(110, 80, 255, 0.28);
-            border-radius: 6px;
-            padding: 2px 8px;
-            font-size: 11px;
-            color: rgba(180, 170, 255, 0.85);
-            margin: 3px 3px 0 0;
-        }
-        .divider { border: none; border-top: 1px solid rgba(100, 80, 255, 0.15); margin: 10px 0; }
-        .proj-link { display: block; margin-top: 8px; font-size: 12px; }
+  /* ---------- HUD under the frame ---------- */
+  #hud{
+    display:flex; gap:10px; align-items:center; justify-content:space-between;
+    margin-top:12px; width:100%;
+  }
+  #hint{ font-size:7px; color:#8a93b8; line-height:1.9; }
+  #muteBtn{
+    font-family:inherit; font-size:8px; color:#e8e8f0;
+    background:#39406a; border:2px solid #565f96; border-radius:6px;
+    padding:7px 10px; cursor:pointer; white-space:nowrap;
+  }
+  #muteBtn:active{ transform:translateY(1px); }
 
-        #card-hero    { max-width: 280px; text-align: center; }
-        #card-contact { max-width: 300px; text-align: center; }
+  /* ---------- Touch controls ---------- */
+  #touchUI{ display:none; width:100%; margin-top:14px; justify-content:space-between; align-items:center; user-select:none; }
+  @media (pointer:coarse){
+    #touchUI{ display:flex; }
+    #hint{ display:none; }
+  }
+  .dpad{ position:relative; width:120px; height:120px; }
+  .dbtn{
+    position:absolute; width:40px; height:40px;
+    background:#39406a; border:2px solid #565f96; border-radius:8px;
+    color:#cfd6ff; font-size:12px; font-family:inherit;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .dbtn:active,.dbtn.held{ background:#4b548c; }
+  #dUp{ left:40px; top:0; } #dDown{ left:40px; top:80px; }
+  #dLeft{ left:0; top:40px; } #dRight{ left:80px; top:40px; }
+  #aBtn{
+    width:62px; height:62px; border-radius:50%;
+    background:#c8403a; border:3px solid #8c1f1a;
+    color:#fff; font-family:inherit; font-size:14px;
+    box-shadow:0 4px 0 #701512;
+  }
+  #aBtn:active{ transform:translateY(2px); box-shadow:0 2px 0 #701512; }
 
-        @media (max-width: 600px) {
-            .card { max-width: 44vw; padding: 12px 14px; font-size: 11px; }
-            .card h1 { font-size: 16px; }
-        }
-
-        /* ---- CONTACT OVERLAY ---- */
-        #contact-overlay {
-            position: fixed;
-            inset: 0;
-            background: #000;
-            z-index: 200;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.7s ease;
-        }
-        #contact-overlay.visible {
-            opacity: 1;
-            pointer-events: all;
-        }
-        #contact-content {
-            text-align: center;
-            font-family: -apple-system, system-ui, sans-serif;
-        }
-        #contact-content h1 {
-            font-size: 44px;
-            font-weight: 300;
-            letter-spacing: -1px;
-            color: #fff;
-            margin: 0 0 8px;
-        }
-        #contact-content .sub {
-            font-size: 13px;
-            color: rgba(150, 160, 220, 0.55);
-            letter-spacing: 2.5px;
-            text-transform: uppercase;
-            margin: 0 0 52px;
-        }
-        .c-link {
-            display: block;
-            font-size: 17px;
-            color: rgba(200, 210, 255, 0.8);
-            text-decoration: none;
-            margin: 16px 0;
-            letter-spacing: 0.3px;
-            transition: color 0.2s;
-        }
-        .c-link:hover { color: #fff; }
-        #contact-esc {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 11px;
-            font-family: -apple-system, system-ui, sans-serif;
-            color: rgba(130, 130, 160, 0.35);
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-    </style>
+  #madeWith{ margin-top:10px; font-size:6px; color:#4a5378; }
+</style>
 </head>
-
 <body>
-    <canvas id="canvas"></canvas>
-    <div id="gyroHint">tap to enable motion</div>
 
-    <!-- ---- PORTFOLIO CARDS ---- -->
-    <div class="card" id="card-hero">
-        <h1>Ashwin Singh</h1>
-        <h2>Full-Stack Developer</h2>
-        <p>Building things that live on the internet. Into systems, interactions, and the occasional black hole.</p>
+<div id="frame">
+  <div id="screenWrap">
+    <canvas id="game" width="256" height="192"></canvas>
+
+    <div id="title">
+      <h1 id="titleName">MY PORTFOLIO</h1>
+      <div class="sub">A TINY ADVENTURE<br>WALK AROUND · TALK TO THINGS</div>
+      <button id="pressStart">▶ PRESS ENTER</button>
     </div>
 
-    <div class="card" id="card-about">
-        <h3>About</h3>
-        <hr class="divider">
-        <p>Computer Science student with a love for creative engineering. I like pushing browsers past their comfort zone.</p>
-        <hr class="divider">
-        <span class="tag">TypeScript</span>
-        <span class="tag">React</span>
-        <span class="tag">Node.js</span>
-        <span class="tag">Python</span>
-        <span class="tag">WebGL</span>
-        <span class="tag">Canvas API</span>
+    <div id="dialog">
+      <span id="dlgTitle"></span>
+      <div id="dlgText"></div>
+      <span id="dlgNext">▼</span>
     </div>
+  </div>
 
-    <div class="card" id="card-proj-1">
-        <h3>Project</h3>
-        <hr class="divider">
-        <p><strong style="color:#fff">Black Hole</strong></p>
-        <p>Interactive gravitational simulation — accretion disk, Doppler beaming, generative music engine.</p>
-        <span class="tag">Canvas</span>
-        <span class="tag">Web Audio</span>
-        <a class="proj-link" href="#">↗ batfishh.github.io</a>
+  <div id="hud">
+    <div id="hint">ARROWS / WASD — MOVE&nbsp;&nbsp;·&nbsp;&nbsp;Z / ENTER / SPACE — INTERACT&nbsp;&nbsp;·&nbsp;&nbsp;M — MUSIC</div>
+    <button id="muteBtn">♪ MUSIC: ON</button>
+  </div>
+
+  <div id="touchUI">
+    <div class="dpad">
+      <button class="dbtn" id="dUp">▲</button>
+      <button class="dbtn" id="dLeft">◀</button>
+      <button class="dbtn" id="dRight">▶</button>
+      <button class="dbtn" id="dDown">▼</button>
     </div>
+    <button id="aBtn">A</button>
+  </div>
+</div>
+<div id="madeWith">HANDCRAFTED PIXELS · NO ENGINES · RUNS ANYWHERE</div>
 
-    <div class="card" id="card-proj-2">
-        <h3>Project</h3>
-        <hr class="divider">
-        <p><strong style="color:#fff">Project Alpha</strong></p>
-        <p>A real-time collaboration tool with live cursors and conflict-free document sync.</p>
-        <span class="tag">React</span>
-        <span class="tag">WebSockets</span>
-        <a class="proj-link" href="#">↗ github.com</a>
-    </div>
+<script>
+"use strict";
 
-    <div class="card" id="card-proj-3">
-        <h3>Project</h3>
-        <hr class="divider">
-        <p><strong style="color:#fff">Project Beta</strong></p>
-        <p>CLI tool for scaffolding and deploying full-stack apps with one command.</p>
-        <span class="tag">Node.js</span>
-        <span class="tag">CLI</span>
-        <a class="proj-link" href="#">↗ github.com</a>
-    </div>
+/* ============================================================
+   ★★★★★★★★★★★★★★  EDIT YOUR CONTENT HERE  ★★★★★★★★★★★★★★
+   Everything visitors read lives in this one object.
+   - Each interactable has a `title` and `pages`.
+   - Each entry in `pages` is one dialog screen (advance with Z).
+   - Use \n for line breaks inside a page.
+   ============================================================ */
+const CONTENT = {
+  gameTitle: "ASHWIN'S PORTFOLIO",     // shown on the title screen
 
-    <div class="card" id="card-contact">
-        <h3>Get in touch</h3>
-        <hr class="divider">
-        <a href="mailto:ashwin27live@gmail.com">ashwin27live@gmail.com</a>
-        &nbsp;·&nbsp;
-        <a href="#">GitHub</a>
-        &nbsp;·&nbsp;
-        <a href="#">LinkedIn</a>
-    </div>
+  intro: {
+    title: "WELCOME",
+    pages: [
+      "Hi! I'm ASHWIN — welcome to my room.\nWalk around and press Z near objects to learn about me.",
+      "The PC has my tech stack, the bookshelf holds my work history... but also check the window, the guitar, and the coffee station. Have fun!"
+    ]
+  },
 
-    <div id="contact-overlay">
-        <div id="contact-content">
-            <h1>Ashwin Singh</h1>
-            <p class="sub">Full-Stack Developer</p>
-            <a class="c-link" href="mailto:ashwin27live@gmail.com">ashwin27live@gmail.com</a>
-            <a class="c-link" href="https://github.com/batfishh" target="_blank">github.com/batfishh</a>
-            <a class="c-link" href="#" target="_blank">linkedin.com/in/ashwin</a>
-        </div>
-        <div id="contact-esc">esc to close</div>
-    </div>
+  bookshelf: {   // ← the tall shelf, top-left
+    title: "WORK EXPERIENCE",
+    pages: [
+      "SENIOR SOFTWARE ENGINEER\nYARA INTERNATIONAL\nWorking across multiple products as a full stack engineer.",
+      "Designed and built multiple backend microservices from scratch — NestJS + PostgreSQL, clean APIs, and architecture that holds up as products grow.",
+      "5 YEARS EXPERIENCE\nFull stack: from database schemas and service boundaries all the way to the React frontends that ship to users."
+    ]
+  },
 
-    <script>
-        // ---- CANVAS ----
-        const canvas = document.getElementById("canvas");
-        const ctx = canvas.getContext("2d");
+  pc: {          // ← the computer on the desk
+    title: "TECH STACK",
+    pages: [
+      "ASHWIN booted up the PC...\nThe stack is loaded!",
+      "BACKEND\nNestJS · Node.js · TypeScript\nPostgreSQL · REST & event-driven APIs",
+      "FRONTEND\nReact · TypeScript\nFast, clean, responsive UIs",
+      "ARCHITECTURE\nMicroservices · message queues\nDocker · CI/CD\nServices that talk nicely and fail gracefully."
+    ]
+  },
 
-        let width, height;
-        function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
+  tv: {          // ← the television
+    title: "PROJECTS",
+    pages: [
+      "The TV flickers to life...\n\n*BZZZT* — NO SIGNAL",
+      "Project showcase coming soon!\nStay tuned."
+    ]
+  },
+
+  console: {     // ← the gaming corner next to the TV
+    title: "GAMER",
+    pages: [
+      "It's ASHWIN's gaming corner.\nThe controller grips are well worn.",
+      "Ashwin is a gamer at heart — the kind who finishes the side quests.\n\nThis portfolio being a game? Not a coincidence."
+    ]
+  },
+
+  window: {      // ← the big window with the mountain view
+    title: "MOUNTAINS",
+    pages: [
+      "Through the window, snow-capped peaks stretch across the horizon...",
+      "Ashwin loves the mountains — trails, summits, and thin air.",
+      "TREKS SO FAR\nHAR KI DUN VALLEY — the Valley of Gods, deep in the Garhwal Himalayas.\nHAMPTA PASS — the dramatic crossover from green Kullu to stark Spiti.",
+      "...plus countless smaller hikes across the hills of South India.\nThe list is still growing."
+    ]
+  },
+
+  guitar: {      // ← the guitar by the bed
+    title: "GUITARIST",
+    pages: [
+      "ASHWIN strummed the guitar...\nIt's perfectly in tune!",
+      "When the code compiles, the guitar comes out. Chords, riffs, and the occasional questionable solo."
+    ]
+  },
+
+  coffee: {      // ← the coffee station, bottom-right
+    title: "COFFEE NERD",
+    pages: [
+      "The coffee station gurgles happily.\nIt smells amazing in here.",
+      "Ashwin is a certified coffee nerd — V60, AeroPress, French press, moka pot... every bean gets the brewer it deserves.",
+      "Current obsession: dialing in the perfect pour-over.\nAsk about grind size at your own risk."
+    ]
+  },
+
+  poster: {      // ← the poster on the wall
+    title: "ABOUT ME",
+    pages: [
+      "It's a poster of everything ASHWIN loves.",
+      "SR. SOFTWARE ENGINEER @ YARA\nFULL STACK · 5 YRS\nGAMER · GUITARIST\nTREKKER · COFFEE NERD",
+      "I like building things end to end — and I believe good software, good coffee, and good riffs all come from caring about the details."
+    ]
+  },
+
+  note: {        // ← the note on the center table
+    title: "CONTACT",
+    pages: [
+      "There's a neatly folded note on the table...",
+      "EMAIL\nashwin@example.com\n\nGITHUB\ngithub.com/ashwin\n\nLINKEDIN\nlinkedin.com/in/ashwin",
+      "(Replace with your real links!)\nI'm open to interesting work — say hello, I always reply."
+    ]
+  },
+
+  mat: {         // ← the doormat at the bottom
+    title: "RESUME",
+    pages: [
+      "Something is written on the mat...",
+      "\"Grab a copy of my resume at\nashwin.dev/resume.pdf\"\n\n(Replace this with your real link!)"
+    ]
+  },
+
+  bed: {         // ← easter egg
+    title: "BED",
+    pages: ["It's a cozy bed.\n...No napping! There's a portfolio to explore."]
+  },
+
+  plant: {       // ← easter egg
+    title: "PLANT",
+    pages: ["It's a happy little plant.\nASHWIN waters it with leftover pour-over. It seems to like the single-origin stuff."]
+  }
+};
+/* ============================================================
+   ★★★★★★★★★★★★  END OF EDITABLE CONTENT  ★★★★★★★★★★★★
+   (Below is the game engine — edit at your own delight.)
+   ============================================================ */
+
+
+/* ---------------- Constants & canvas ---------------- */
+const TILE = 16, MAP_W = 16, MAP_H = 12;
+const cvs = document.getElementById("game");
+const ctx = cvs.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+
+/* Integer upscale to fit the window */
+function fitScreen(){
+  const pad = 90;
+  const maxW = Math.min(window.innerWidth - 60, 900);
+  const maxH = window.innerHeight - pad - 140;
+  let s = Math.floor(Math.min(maxW / 256, maxH / 192));
+  if (s < 1) s = Math.min(maxW / 256, maxH / 192); // tiny screens: allow fractional
+  cvs.style.width  = (256 * s) + "px";
+  cvs.style.height = (192 * s) + "px";
+  document.getElementById("hud").style.width = cvs.style.width;
+  document.getElementById("touchUI").style.width = cvs.style.width;
+}
+window.addEventListener("resize", fitScreen);
+fitScreen();
+
+/* ---------------- Map ----------------
+   Legend: U upper wall · W wall panel · S side wall
+           B bottom wall · . floor · r rug                */
+const MAP = [
+  "UUUUUUUUUUUUUUUU",
+  "WWWWWWWWWWWWWWWW",
+  "S..............S",
+  "S..............S",
+  "S..............S",
+  "S.....rrrr.....S",
+  "S.....rrrr.....S",
+  "S.....rrrr.....S",
+  "S..............S",
+  "S..............S",
+  "S..............S",
+  "BBBBBBBBBBBBBBBB",
+];
+
+/* Objects: id · tile footprint (solid) · content key · draw info */
+const OBJECTS = [
+  { key:"bookshelf", tiles:[[1,1],[2,1]] },
+  { key:"pc",        tiles:[[4,1]] },
+  { key:"tv",        tiles:[[6,1],[7,1]] },
+  { key:"console",   tiles:[[9,1]] },
+  { key:"window",    tiles:[[11,1],[12,1]], flat:true },  // mountain view
+  { key:"poster",    tiles:[[13,1]], flat:true },         // flat = on the wall
+  { key:"note",      tiles:[[7,6],[8,6]] },               // table
+  { key:"plant",     tiles:[[14,2]] },
+  { key:"bed",       tiles:[[1,8],[1,9]] },
+  { key:"guitar",    tiles:[[3,9]] },
+  { key:"coffee",    tiles:[[12,9],[13,9]] },
+  { key:"mat",       tiles:[[7,10],[8,10]], flat:true, walkable:true },
+];
+
+const solid = new Set();
+const interact = new Map();     // "x,y" -> object
+for (let y=0; y<MAP_H; y++)
+  for (let x=0; x<MAP_W; x++)
+    if (MAP[y][x] !== "." && MAP[y][x] !== "r") solid.add(x+","+y);
+for (const o of OBJECTS)
+  for (const [x,y] of o.tiles){
+    if (!o.walkable) solid.add(x+","+y);
+    interact.set(x+","+y, o);
+  }
+
+/* ---------------- Pixel-art helpers ---------------- */
+function px(c, x, y, w=1, h=1){ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); }
+
+/* ---------------- Player sprite (hand-drawn grids) ----------------
+   16 wide × 20 tall. '.'=transparent, letters map to PAL colors.   */
+const PAL = {
+  K:"#20242c", R:"#d84840", r:"#98282c", W:"#f8f8f8",
+  S:"#f8c088", s:"#c88850", B:"#3870c0", b:"#28508c",
+  P:"#5a6070", p:"#3e4450", F:"#2a2e38",
+};
+
+const HEAD_DOWN = [
+  "....KKKKKKKK....",
+  "...KRRRRRRRRK...",
+  "..KRRRRRRRRRRK..",
+  "..KRRRWWRRRRRK..",
+  "..KRrrrrrrrrrK..",
+  "..KKKKKKKKKKKK..",
+  ".KSSSSSSSSSSSSK.",
+  ".KSKKSSSSKKSSSK.",
+  ".KSKKSSSSKKSSSK.",
+  "..KSSSssSSSSSK..",
+  "...KKSSSSSSKK...",
+];
+const HEAD_UP = [
+  "....KKKKKKKK....",
+  "...KRRRRRRRRK...",
+  "..KRRRRRRRRRRK..",
+  "..KRRRRRRRRRRK..",
+  "..KrrrrrrrrrrK..",
+  "..KKrrrrrrrrKK..",
+  ".KSKrrrrrrrrKSK.",
+  ".KSKKrrrrrrKKSK.",
+  ".KSSKKKKKKKKSSK.",
+  "..KSSSSSSSSSSK..",
+  "...KKSSSSSSKK...",
+];
+const HEAD_SIDE = [ // facing right
+  "....KKKKKKKK....",
+  "...KRRRRRRRRK...",
+  "..KRRRRRRRRRRK..",
+  "..KRRRRRWWRRRK..",
+  "..KrrrrrrrrrrKK.",
+  "..KKKKKKKKKKKK..",
+  "..KSrSSSSSSSSK..",
+  "..KSrSSSKKSSSK..",
+  "..KSrSSSKKSSsK..",
+  "..KSSSSSSSssK...",
+  "...KKSSSSSSK....",
+];
+
+const BODY_DOWN_STAND = [
+  "..KBBBBBBBBBBK..",
+  ".KBBBBBBBBBBBBK.",
+  ".KSKBBBBBBBBKSK.",
+  ".KKKBbbbbbbBKKK.",
+  "...KPPPKKPPPK...",
+  "...KPPPK.KPPK...",
+  "...KFFFK.KFFK...",
+  "...KKKKK.KKKK...",
+  "................",
+];
+const BODY_DOWN_STEP = [
+  "..KBBBBBBBBBBK..",
+  ".KBBBBBBBBBBBBK.",
+  ".KSKBBBBBBBBKSK.",
+  ".KKKBbbbbbbBKKK.",
+  "...KPPPKKPPPK...",
+  "...KPPPK.KPPK...",
+  "...KFFFK.....",
+  "...KKKKK.....",
+  "................",
+];
+const BODY_UP_STAND = [
+  "..KBBBBBBBBBBK..",
+  ".KBBBBBBBBBBBBK.",
+  ".KSKBbbbbbbBKSK.",
+  ".KKKBbbbbbbBKKK.",
+  "...KPPPKKPPPK...",
+  "...KPPPK.KPPK...",
+  "...KFFFK.KFFK...",
+  "...KKKKK.KKKK...",
+  "................",
+];
+const BODY_UP_STEP = BODY_DOWN_STEP;
+const BODY_SIDE_STAND = [
+  "..KBBBBBBBBBK...",
+  "..KBBBBBBBBBBK..",
+  "..KSKBBBBBBKSK..",
+  "..KKKBbbbbBKKK..",
+  "....KPPPPPPK....",
+  "....KPPKPPPK....",
+  "....KFFKKFFK....",
+  "....KKKK.KKK....",
+  "................",
+];
+const BODY_SIDE_STEP = [
+  "..KBBBBBBBBBK...",
+  "..KBBBBBBBBBBK..",
+  "..KSKBBBBBBKSK..",
+  "..KKKBbbbbBKKK..",
+  "....KPPPPPPK....",
+  "...KPPK.KPPPK...",
+  "...KFFK..KFFFK..",
+  "...KKKK..KKKKK..",
+  "................",
+];
+
+function buildSprite(head, body, mirror){
+  const c = document.createElement("canvas");
+  c.width = 16; c.height = 20;
+  const g = c.getContext("2d");
+  const rows = head.concat(body);
+  for (let y=0; y<20 && y<rows.length; y++){
+    const row = (rows[y]||"").padEnd(16, ".");
+    for (let x=0; x<16; x++){
+      const ch = row[x];
+      if (ch !== "." && PAL[ch]){ g.fillStyle = PAL[ch]; g.fillRect(x, y, 1, 1); }
+    }
+  }
+  if (!mirror) return c;
+  const m = document.createElement("canvas");
+  m.width = 16; m.height = 20;
+  const mg = m.getContext("2d");
+  mg.translate(16,0); mg.scale(-1,1); mg.drawImage(c,0,0);
+  return m;
+}
+function mirrorRows(rows){ return rows.map(r => r.padEnd(16,".").split("").reverse().join("")); }
+
+const SPR = {
+  down:  [ buildSprite(HEAD_DOWN, BODY_DOWN_STAND),
+           buildSprite(HEAD_DOWN, BODY_DOWN_STEP),
+           buildSprite(HEAD_DOWN, mirrorRows(BODY_DOWN_STEP)) ],
+  up:    [ buildSprite(HEAD_UP, BODY_UP_STAND),
+           buildSprite(HEAD_UP, BODY_UP_STEP),
+           buildSprite(HEAD_UP, mirrorRows(BODY_UP_STEP)) ],
+  right: [ buildSprite(HEAD_SIDE, BODY_SIDE_STAND),
+           buildSprite(HEAD_SIDE, BODY_SIDE_STEP),
+           buildSprite(HEAD_SIDE, BODY_SIDE_STAND) ],
+  left:  [ buildSprite(HEAD_SIDE, BODY_SIDE_STAND, true),
+           buildSprite(HEAD_SIDE, BODY_SIDE_STEP, true),
+           buildSprite(HEAD_SIDE, BODY_SIDE_STAND, true) ],
+};
+
+/* ---------------- Room rendering (pre-baked background) ---------------- */
+const bg = document.createElement("canvas");
+bg.width = 256; bg.height = 192;
+const bgx = bg.getContext("2d");
+
+function tilePx(g, c, tx, ty, x, y, w=1, h=1){
+  g.fillStyle = c; g.fillRect(tx*TILE + x, ty*TILE + y, w, h);
+}
+
+function drawRoom(g){
+  for (let y=0; y<MAP_H; y++){
+    for (let x=0; x<MAP_W; x++){
+      const t = MAP[y][x];
+      if (t === "U"){                                  // upper wall
+        tilePx(g,"#98b8a0",x,y,0,0,16,16);
+        tilePx(g,"#88a890",x,y,0,0,16,2);
+        for (let i=0;i<4;i++) tilePx(g,"#8fb097",x,y,i*4+1,3,1,12);
+        tilePx(g,"#78987f",x,y,0,14,16,2);
+      } else if (t === "W"){                           // wood paneling
+        tilePx(g,"#a8764a",x,y,0,0,16,16);
+        tilePx(g,"#c08a58",x,y,0,0,16,2);
+        tilePx(g,"#8a5c38",x,y,0,12,16,4);
+        tilePx(g,"#754c2e",x,y,0,15,16,1);
+        tilePx(g,"#96683f",x,y,5,2,1,10);
+        tilePx(g,"#96683f",x,y,11,2,1,10);
+      } else if (t === "S" || t === "B"){              // side & bottom walls
+        tilePx(g,"#5c4630",x,y,0,0,16,16);
+        tilePx(g,"#4a3826",x,y,0,0,16,1);
+        tilePx(g,"#6a523a",x,y, (x+y)%2?2:8, 4, 3, 3);
+      } else {                                         // wooden floor
+        tilePx(g,"#e8c890",x,y,0,0,16,16);
+        tilePx(g,"#dcb87c",x,y,0,7,16,1);
+        tilePx(g,"#dcb87c",x,y,0,15,16,1);
+        tilePx(g,"#d2ac6e",x,y,(y%2)?3:10,0,1,7);
+        tilePx(g,"#d2ac6e",x,y,(y%2)?12:6,8,1,7);
+        if (t === "r"){                                // rug
+          tilePx(g,"#68a068",x,y,0,0,16,16);
+          tilePx(g,"#569056",x,y,0,0,16,16);
+          tilePx(g,"#68a868",x,y,1,1,14,14);
+          if ((x+y)%2===0) tilePx(g,"#74b474",x,y,4,4,8,8);
         }
-        resize();
-        window.addEventListener("resize", resize);
-
-        let mouse = { x: width / 2, y: height / 2 };
-        let bh = { x: width / 2, y: height / 2 };
-        window.addEventListener("mousemove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
-
-        // ---- MOBILE GYRO POINTER ----
-        const isTouchDevice = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
-        let gyroEnabled = false;
-        let gyroRequested = false;
-        let gyroBase = null;
-        let motionBase = null;
-        let orientationActive = false;
-        const gyroHint = document.getElementById("gyroHint");
-        if (isTouchDevice && gyroHint) gyroHint.style.opacity = "1";
-
-        function hideGyroHint() {
-            if (gyroHint) gyroHint.style.opacity = "0";
-        }
-
-        function clampTilt(value) {
-            return Math.max(-1, Math.min(1, value));
-        }
-
-        function setGyroMouse(tiltX, tiltY) {
-            mouse.x = width / 2 + clampTilt(tiltX) * width * 0.48;
-            mouse.y = height / 2 + clampTilt(tiltY) * height * 0.48;
-        }
-
-        function handleOrientation(e) {
-            if (!isTouchDevice) return;
-
-            const beta = e.beta;   // front/back tilt, roughly -180..180
-            const gamma = e.gamma; // left/right tilt, roughly -90..90
-            if (beta === null || gamma === null) return;
-
-            if (!orientationActive) hideGyroHint();
-            orientationActive = true;
-            if (!gyroBase) gyroBase = { beta, gamma };
-
-            setGyroMouse((gamma - gyroBase.gamma) / 35, (beta - gyroBase.beta) / 35);
-        }
-
-        function handleMotion(e) {
-            if (!isTouchDevice || orientationActive) return;
-
-            const gravity = e.accelerationIncludingGravity;
-            if (!gravity || gravity.x === null || gravity.y === null) return;
-
-            if (!motionBase) motionBase = { x: gravity.x, y: gravity.y };
-
-            setGyroMouse((gravity.x - motionBase.x) / 5, (motionBase.y - gravity.y) / 5);
-        }
-
-        function enableGyroPointer() {
-            if (!isTouchDevice || gyroEnabled || gyroRequested) return;
-            gyroRequested = true;
-
-            const start = () => {
-                if ("DeviceOrientationEvent" in window) {
-                    window.addEventListener("deviceorientation", handleOrientation);
-                }
-                if ("DeviceMotionEvent" in window) {
-                    window.addEventListener("devicemotion", handleMotion);
-                }
-                gyroEnabled = true;
-            };
-
-            const orientationPermission = "DeviceOrientationEvent" in window &&
-                typeof DeviceOrientationEvent.requestPermission === "function"
-                ? DeviceOrientationEvent.requestPermission()
-                : Promise.resolve("granted");
-            const motionPermission = "DeviceMotionEvent" in window &&
-                typeof DeviceMotionEvent.requestPermission === "function"
-                ? DeviceMotionEvent.requestPermission()
-                : Promise.resolve("granted");
-
-            Promise.allSettled([orientationPermission, motionPermission]).then((results) => {
-                const granted = results.some((r) => r.status === "fulfilled" && r.value === "granted");
-                if (granted) {
-                    start();
-                } else {
-                    // permission denied or unavailable — allow another tap to retry
-                    gyroRequested = false;
-                }
-            });
-
-            if (!("DeviceOrientationEvent" in window) && !("DeviceMotionEvent" in window)) {
-                start();
-            }
-        }
-
-        // Touch-as-cursor fallback. iOS Safari doesn't reliably fire synthetic
-        // mousemove on tap, and on Chrome iOS only the tap point fires — so update
-        // mouse directly from touches. Gyro takes precedence once active.
-        window.addEventListener("touchstart", (e) => {
-            if (e.touches.length > 0 && !orientationActive) {
-                mouse.x = e.touches[0].clientX;
-                mouse.y = e.touches[0].clientY;
-            }
-            enableGyroPointer();
-        }, { passive: true });
-        window.addEventListener("touchmove", (e) => {
-            if (orientationActive || e.touches.length === 0) return;
-            mouse.x = e.touches[0].clientX;
-            mouse.y = e.touches[0].clientY;
-        }, { passive: true });
-        // click is the most reliable user-gesture anchor for requestPermission()
-        window.addEventListener("click", enableGyroPointer);
-        window.addEventListener("resize", () => { gyroBase = null; motionBase = null; });
-        window.addEventListener("orientationchange", () => { gyroBase = null; motionBase = null; });
-
-        let t = 0;
-
-        // ---- PERF TIER ----
-        // Scale particle counts down on low-core CPUs so the scene stays smooth.
-        const isLowEnd = (navigator.hardwareConcurrency || 4) < 4;
-        const STAR_COUNT = isLowEnd ? 500 : 900;
-        const PARTICLE_COUNT = isLowEnd ? 1300 : 2200;
-        const JET_COUNT = isLowEnd ? 150 : 260;
-
-        // ---- NEBULAE (slow-drifting cosmic dust) ----
-        const nebulae = [];
-        for (let i = 0; i < 5; i++) {
-            nebulae.push({
-                x: Math.random() * window.innerWidth,
-                y: Math.random() * window.innerHeight,
-                r: 260 + Math.random() * 380,
-                hue: 230 + Math.random() * 110,    // purple → magenta range
-                vx: (Math.random() - 0.5) * 0.08,
-                vy: (Math.random() - 0.5) * 0.08,
-                intensity: 0.04 + Math.random() * 0.035
-            });
-        }
-
-        // ---- STARS ----
-        const stars = [];
-        for (let i = 0; i < STAR_COUNT; i++) {
-            stars.push({
-                x: Math.random() * window.innerWidth,
-                y: Math.random() * window.innerHeight,
-                b: 0.3 + Math.random() * 0.7,
-                size: Math.random() < 0.85 ? 0.8 + Math.random() * 0.8 : 1.6 + Math.random() * 1.4,
-                phase: Math.random() * Math.PI * 2
-            });
-        }
-
-        // ---- SHOOTING STARS ----
-        const shootingStars = [];
-        function spawnShootingStar() {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.max(width, height) * 0.65;
-            const cx = width / 2, cy = height / 2;
-            const sx = cx + Math.cos(angle) * dist * 1.2;
-            const sy = cy + Math.sin(angle) * dist * 1.2;
-            const dirAngle = angle + Math.PI + (Math.random() - 0.5) * 0.7;
-            const length = dist * (1.6 + Math.random() * 0.6);
-            shootingStars.push({
-                sx, sy,
-                dx: Math.cos(dirAngle), dy: Math.sin(dirAngle),
-                length, progress: 0,
-                speed: 0.012 + Math.random() * 0.015,
-                hue: Math.random() < 0.55 ? 200 + Math.random() * 30  // cool blue
-                    : 35 + Math.random() * 25  // warm gold
-            });
-        }
-        setInterval(() => {
-            if (Math.random() < 0.6 && shootingStars.length < 4) spawnShootingStar();
-        }, 2200);
-
-        // ---- ACCRETION DISK PARTICLES ----
-        const particles = [];
-        const innerCount = Math.floor(PARTICLE_COUNT * 0.64);
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
-            const inner = i < innerCount;
-            particles.push({
-                angle: Math.random() * Math.PI * 2,
-                radius: inner ? 65 + Math.random() * 110 : 175 + Math.random() * 130,
-                speed: inner ? 0.005 + Math.random() * 0.006 : 0.002 + Math.random() * 0.003,
-                size: inner ? 0.8 + Math.random() * 1.4 : 0.4 + Math.random() * 0.9,
-                hueOffset: Math.random() * 60
-            });
-        }
-
-        // ---- JETS ----
-        const jets = [];
-        for (let i = 0; i < JET_COUNT; i++) {
-            jets.push({
-                progress: Math.random(),
-                speed: 0.006 + Math.random() * 0.01,
-                side: i < JET_COUNT / 2 ? 1 : -1,
-                spread: (Math.random() - 0.5) * 22
-            });
-        }
-
-        // ---- CLICK EFFECT STATE ----
-        const ringHues = [38, 190, 320, 140, 270, 0, 55];
-        let ringHueIdx = 0;
-        const shockwaves = [];
-        let distortSpike = 0;
-        let flashAlpha = 0;
-
-        // ---- SCROLL-TO-RESIZE EVENT HORIZON ----
-        let ehScale = 1.0, ehScaleTarget = 1.0;
-        window.addEventListener("wheel", (e) => {
-            e.preventDefault();
-            ehScaleTarget *= e.deltaY > 0 ? 0.93 : 1.075;
-            ehScaleTarget = Math.max(0.4, Math.min(2.8, ehScaleTarget));
-        }, { passive: false });
-
-        function lerp(a, b, f) { return a + (b - a) * f; }
-
-        // ---- CARD GRAVITY PHYSICS ----
-        // Each card is a point mass attracted to `bh` via F = G/r².
-        // A soft repulsion floor at minDist prevents collision with the event horizon.
-        // A small tangential initial velocity creates loose orbital drift.
-        const G_CARDS   = 55;    // gravitational strength
-        const MIN_DIST  = 220;   // closest a card centre can get to bh centre (px)
-        const DAMPING   = 0.994; // very light drag — preserves orbital energy
-        const MAX_SPEED = 2.8;
-
-        let cardObjs = [];
-
-        function initCards() {
-            document.querySelectorAll('.card').forEach(el => {
-                const w = el.offsetWidth || 220;
-                const h = el.offsetHeight || 120;
-
-                // Spawn randomly, outside a centre exclusion zone
-                let x, y, dist;
-                const pad = 24;
-                const minSpawn = Math.min(width, height) * 0.32;
-                let attempts = 0;
-                do {
-                    x = pad + Math.random() * (width  - w - pad * 2);
-                    y = pad + Math.random() * (height - h - pad * 2);
-                    dist = Math.hypot(x + w/2 - width/2, y + h/2 - height/2);
-                    attempts++;
-                } while (dist < minSpawn && attempts < 40);
-
-                // Tangential velocity so cards drift rather than fall straight in
-                const angle    = Math.atan2(y + h/2 - height/2, x + w/2 - width/2);
-                const tangent  = angle + Math.PI / 2;
-                const initSpd  = 0.15 + Math.random() * 0.25;
-                const dir      = Math.random() < 0.5 ? 1 : -1;
-
-                cardObjs.push({
-                    el, w, h, x, y,
-                    vx: Math.cos(tangent) * initSpd * dir,
-                    vy: Math.sin(tangent) * initSpd * dir,
-                    driftCooldown: 3000 + Math.random() * 9000,
-                    drifting: false,
-                    driftRemaining: 0,
-                });
-
-                // Bottom-right corner bracket element
-                const br = document.createElement('div');
-                br.className = 'card-corner-br';
-                el.appendChild(br);
-
-                el.style.visibility = 'visible';
-                el.style.transform = `translate(${x}px,${y}px)`;
-            });
-        }
-
-        function updateCards(dt) {
-            for (const c of cardObjs) {
-                const cx = c.x + c.w / 2;
-                const cy = c.y + c.h / 2;
-                const dx = bh.x - cx;
-                const dy = bh.y - cy;
-                const dist = Math.hypot(dx, dy) || 0.001;
-
-                // Suck-into-black-hole animation (triggered by G key)
-                if (c.sucking) {
-                    const force = 700 / (Math.max(dist, 5) * Math.max(dist, 5));
-                    c.vx += (dx / dist) * force;
-                    c.vy += (dy / dist) * force;
-                    c.vx *= 0.88;
-                    c.vy *= 0.88;
-                    c.x += c.vx;
-                    c.y += c.vy;
-                    c.suckSpin = (c.suckSpin || 0) + Math.min(20, 320 / (dist + 8));
-                    const scale = Math.max(0, Math.min(1, (dist - 12) / 170));
-                    c.el.style.opacity = scale.toFixed(3);
-                    c.el.style.transform = `translate(${c.x}px,${c.y}px) rotate(${c.suckSpin}deg) scale(${scale})`;
-                    if (dist < 18) {
-                        c.el.style.visibility = 'hidden';
-                        c.sucking = false;
-                        showContactOverlay();
-                    }
-                    continue;
-                }
-
-                // Trigger contact page when mouse (BH) is dragged over the contact card
-                if (c.el.id === 'card-contact' && !c.sucking && !contactOverlay.classList.contains('visible')) {
-                    if (mouse.x > c.x && mouse.x < c.x + c.w && mouse.y > c.y && mouse.y < c.y + c.h) {
-                        c.sucking = true;
-                        c.suckSpin = 0;
-                    }
-                }
-
-                // Gravity — clamped so it doesn't explode at very short range
-                const fDist = Math.max(dist, MIN_DIST);
-                const force = G_CARDS / (fDist * fDist);
-                c.vx += (dx / dist) * force;
-                c.vy += (dy / dist) * force;
-
-                // Random idle drift: periodically bleed orbital energy so the card
-                // slowly spirals inward, gets repulsed, and resumes orbit
-                if (c.drifting) {
-                    c.driftRemaining -= dt;
-                    if (c.driftRemaining <= 0) {
-                        c.drifting = false;
-                        c.driftCooldown = 6000 + Math.random() * 14000;
-                    }
-                    c.vx += (dx / dist) * 0.055;
-                    c.vy += (dy / dist) * 0.055;
-                } else {
-                    c.driftCooldown -= dt;
-                    if (c.driftCooldown <= 0) {
-                        c.drifting = true;
-                        c.driftRemaining = 1400 + Math.random() * 2000;
-                    }
-                }
-
-                // Repulsion floor — elastic push away below minDist
-                if (dist < MIN_DIST) {
-                    const push = ((MIN_DIST - dist) / MIN_DIST) * 1.1;
-                    c.vx -= (dx / dist) * push;
-                    c.vy -= (dy / dist) * push;
-                }
-
-                c.vx *= DAMPING;
-                c.vy *= DAMPING;
-
-                const spd = Math.hypot(c.vx, c.vy);
-                if (spd > MAX_SPEED) { c.vx = c.vx / spd * MAX_SPEED; c.vy = c.vy / spd * MAX_SPEED; }
-
-                c.x += c.vx;
-                c.y += c.vy;
-
-                // Soft screen-edge bounce
-                if (c.x < 0)           { c.x = 0;            c.vx =  Math.abs(c.vx) * 0.45; }
-                if (c.y < 0)           { c.y = 0;            c.vy =  Math.abs(c.vy) * 0.45; }
-                if (c.x + c.w > width) { c.x = width  - c.w; c.vx = -Math.abs(c.vx) * 0.45; }
-                if (c.y + c.h > height){ c.y = height - c.h; c.vy = -Math.abs(c.vy) * 0.45; }
-
-                // Banking tilt from vertical velocity
-                const tiltDeg = Math.max(-10, Math.min(10, c.vy * 2.2));
-
-                // Dynamic glow and border colour driven by proximity to the black hole
-                const proximity = Math.max(0, 1 - dist / (Math.max(width, height) * 0.55));
-                const rh = ringHues[ringHueIdx];
-                c.el.style.borderColor = `hsla(${rh},80%,${50 + proximity * 28}%,${0.22 + proximity * 0.5})`;
-                c.el.style.boxShadow   = `0 0 ${22 + proximity * 55}px hsla(${rh},100%,62%,${0.12 + proximity * 0.42}), inset 0 0 ${8 + proximity * 16}px rgba(100,70,255,${0.04 + proximity * 0.14})`;
-                c.el.style.transform   = `translate(${c.x}px,${c.y}px) rotate(${tiltDeg}deg)`;
-            }
-        }
-
-        // AABB separation — resolves rectangle overlaps between card pairs.
-        // Uses SAT: find the minimum overlap axis and apply a velocity impulse + small
-        // positional nudge along it so cards never visually intersect.
-        const CARD_GAP = 10; // minimum gap to maintain between cards (px)
-
-        function separateCards() {
-            for (let i = 0; i < cardObjs.length; i++) {
-                for (let j = i + 1; j < cardObjs.length; j++) {
-                    const a = cardObjs[i], b = cardObjs[j];
-                    if (a.sucking || b.sucking) continue;
-
-                    const acx = a.x + a.w / 2,  acy = a.y + a.h / 2;
-                    const bcx = b.x + b.w / 2,  bcy = b.y + b.h / 2;
-
-                    const dx = bcx - acx;
-                    const dy = bcy - acy;
-
-                    const ox = (a.w / 2 + b.w / 2 + CARD_GAP) - Math.abs(dx);
-                    const oy = (a.h / 2 + b.h / 2 + CARD_GAP) - Math.abs(dy);
-
-                    if (ox <= 0 || oy <= 0) continue; // no overlap
-
-                    // Resolve along the axis with the smallest penetration depth
-                    if (ox < oy) {
-                        const sign = dx >= 0 ? 1 : -1;
-                        // Positional correction (avoids slow drift-through)
-                        const corr = ox * 0.3;
-                        a.x -= sign * corr * 0.5;
-                        b.x += sign * corr * 0.5;
-                        // Velocity impulse
-                        const imp = ox * 0.12;
-                        a.vx -= sign * imp;
-                        b.vx += sign * imp;
-                    } else {
-                        const sign = dy >= 0 ? 1 : -1;
-                        const corr = oy * 0.3;
-                        a.y -= sign * corr * 0.5;
-                        b.y += sign * corr * 0.5;
-                        const imp = oy * 0.12;
-                        a.vy -= sign * imp;
-                        b.vy += sign * imp;
-                    }
-                }
-            }
-        }
-
-        // Init after layout is painted so offsetWidth/Height are real
-        requestAnimationFrame(() => requestAnimationFrame(initCards));
-        window.addEventListener('resize', () => {
-            cardObjs.forEach(c => {
-                c.x = Math.min(c.x, width  - c.w);
-                c.y = Math.min(c.y, height - c.h);
-            });
-        });
-
-        let prevFrameTime = performance.now();
-
-        function draw() {
-            const now = performance.now();
-            const dt = Math.min(now - prevFrameTime, 50);
-            prevFrameTime = now;
-
-            t += 0.01;
-            bh.x = lerp(bh.x, mouse.x, 0.055);
-            bh.y = lerp(bh.y, mouse.y, 0.055);
-            ehScale = lerp(ehScale, ehScaleTarget, 0.1);
-            updateCards(dt);
-            separateCards();
-
-            // Shrink the black hole + disk + jets on small screens so it occupies
-            // roughly the same fraction of the viewport as it does on desktop.
-            const screenScale = Math.min(1, Math.min(width, height) / 700);
-
-            distortSpike *= 0.82;
-            flashAlpha *= 0.76;
-
-            // ---- TRAIL FADE ----
-            ctx.fillStyle = "rgba(0,0,0,0.07)";
-            ctx.fillRect(0, 0, width, height);
-
-            // ---- NEBULAE (behind stars) ----
-            for (const n of nebulae) {
-                n.x += n.vx; n.y += n.vy;
-                if (n.x < -n.r) n.x = width + n.r;
-                if (n.x > width + n.r) n.x = -n.r;
-                if (n.y < -n.r) n.y = height + n.r;
-                if (n.y > height + n.r) n.y = -n.r;
-
-                const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r);
-                g.addColorStop(0, `hsla(${n.hue},80%,55%,${n.intensity})`);
-                g.addColorStop(0.4, `hsla(${(n.hue + 30) % 360},70%,40%,${n.intensity * 0.45})`);
-                g.addColorStop(1, "rgba(0,0,0,0)");
-                ctx.fillStyle = g;
-                ctx.fillRect(0, 0, width, height);
-            }
-
-            // ---- STARS (with click distortion spike) ----
-            const distortStr = 14000 * (1 + distortSpike * 4);
-            for (const s of stars) {
-                s.phase += 0.018;
-                const twinkle = 0.65 + Math.sin(s.phase) * 0.35;
-                const dx = s.x - bh.x, dy = s.y - bh.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const angle = Math.atan2(dy, dx);
-                const warpedDist = dist + distortStr / (dist + 90) + Math.sin(dist * 0.038 - t * 2.8) * 5;
-                const x = bh.x + Math.cos(angle) * warpedDist;
-                const y = bh.y + Math.sin(angle) * warpedDist;
-                const a = s.b * twinkle;
-                ctx.fillStyle = `rgba(110,170,255,${a})`;
-                ctx.fillRect(x - s.size * 0.5, y - s.size * 0.5, s.size, s.size);
-                ctx.fillStyle = `rgba(190,110,255,${a * 0.45})`;
-                ctx.fillRect(x - s.size * 0.5 + 1.2, y - s.size * 0.5, s.size, s.size);
-                ctx.fillStyle = `rgba(80,240,220,${a * 0.45})`;
-                ctx.fillRect(x - s.size * 0.5 - 1.2, y - s.size * 0.5, s.size, s.size);
-            }
-
-            // ---- SHOOTING STARS ----
-            for (let i = shootingStars.length - 1; i >= 0; i--) {
-                const ss = shootingStars[i];
-                ss.progress += ss.speed;
-                if (ss.progress > 1) { shootingStars.splice(i, 1); continue; }
-
-                const headX = ss.sx + ss.dx * ss.length * ss.progress;
-                const headY = ss.sy + ss.dy * ss.length * ss.progress;
-                const tailProg = Math.max(0, ss.progress - 0.13);
-                const tailX = ss.sx + ss.dx * ss.length * tailProg;
-                const tailY = ss.sy + ss.dy * ss.length * tailProg;
-
-                const fade = ss.progress < 0.1 ? ss.progress / 0.1 :
-                    ss.progress > 0.85 ? (1 - ss.progress) / 0.15 : 1;
-
-                const grad = ctx.createLinearGradient(headX, headY, tailX, tailY);
-                grad.addColorStop(0, `hsla(${ss.hue},100%,92%,${fade})`);
-                grad.addColorStop(0.4, `hsla(${ss.hue},100%,70%,${fade * 0.55})`);
-                grad.addColorStop(1, `hsla(${ss.hue},100%,60%,0)`);
-                ctx.strokeStyle = grad;
-                ctx.lineWidth = 1.7;
-                ctx.lineCap = "round";
-                ctx.beginPath();
-                ctx.moveTo(headX, headY);
-                ctx.lineTo(tailX, tailY);
-                ctx.stroke();
-
-                // bright head pixel
-                ctx.fillStyle = `hsla(${ss.hue},100%,96%,${fade})`;
-                ctx.beginPath();
-                ctx.arc(headX, headY, 1.4, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            // ---- ACCRETION DISK with DOPPLER BEAMING ----
-            // Particles on the front-facing half (sin(angle) > 0) are relativistically
-            // beamed toward the viewer: much brighter, hue-shifted warmer.
-            // The back half is attenuated and slightly cooler — that's what makes
-            // Gargantua's bright crescent so iconic.
-            for (const p of particles) {
-                p.angle += p.speed;
-                const r = p.radius * screenScale;
-                const wave = Math.sin(p.angle * 5 + t * 2.5) * 2.5;
-                const x = bh.x + Math.cos(p.angle) * (r + wave);
-                const y = bh.y + Math.sin(p.angle) * (r + wave) * 0.3;
-
-                const doppler = Math.sin(p.angle);                  // -1 (back) … +1 (front)
-                const beam = 0.4 + Math.pow(Math.max(0, 0.5 + doppler * 0.5), 2.2) * 1.6;
-
-                const baseIntensity = Math.pow(Math.max(0, 1 - (p.radius - 65) / 240), 1.4);
-                const intensity = Math.min(1, baseIntensity * beam);
-
-                const baseHue = (t * 55 + p.radius * 1.2 + p.hueOffset) % 360;
-                const hue = baseHue + doppler * 22;
-                const lightness = 50 + intensity * 28 + doppler * 12;
-
-                ctx.beginPath();
-                ctx.arc(x, y, p.size * (0.5 + intensity * 0.9), 0, Math.PI * 2);
-                ctx.fillStyle = `hsla(${hue},100%,${lightness}%,${intensity * 0.9})`;
-                ctx.fill();
-            }
-
-            // ---- JETS ----
-            for (const j of jets) {
-                j.progress += j.speed;
-                if (j.progress > 1) j.progress = 0;
-                const x = bh.x + j.spread * j.progress;
-                const y = bh.y + j.side * j.progress * 280 * screenScale;
-                ctx.beginPath();
-                ctx.arc(x, y, 1.8 * (1 - j.progress), 0, Math.PI * 2);
-                ctx.fillStyle = `hsla(${210 + j.progress * 50},100%,82%,${(1 - j.progress) * 0.22})`;
-                ctx.fill();
-            }
-
-            // ---- SHOCKWAVE RINGS ----
-            const diag = Math.sqrt(width * width + height * height);
-            for (let i = shockwaves.length - 1; i >= 0; i--) {
-                const sw = shockwaves[i];
-                sw.age += 0.016;
-                if (sw.age < 0) continue;
-                if (sw.age > 1.4) { shockwaves.splice(i, 1); continue; }
-                const p = sw.age / 1.4;
-                const r = p * diag * 0.85;
-                const alpha = Math.pow(1 - p, 1.6) * 0.9;
-                const lw = Math.max(0.3, 2.5 * (1 - p));
-                for (let c = 0; c < 3; c++) {
-                    const hue = (sw.hue + c * 120) % 360;
-                    const offset = (c - 1) * 7;
-                    const aFrac = c === 1 ? 1 : 0.35;
-                    ctx.beginPath();
-                    ctx.arc(sw.x, sw.y, Math.max(1, r + offset), 0, Math.PI * 2);
-                    ctx.strokeStyle = `hsla(${hue},100%,75%,${alpha * aFrac})`;
-                    ctx.lineWidth = c === 1 ? lw * 1.8 : lw * 0.7;
-                    ctx.stroke();
-                }
-            }
-
-            // ---- EVENT HORIZON ----
-            const pulse = Math.sin(t * 1.8) * 4;
-            const hr = (58 + pulse) * ehScale * screenScale;
-
-            const halo = ctx.createRadialGradient(bh.x, bh.y, hr * 0.6, bh.x, bh.y, hr * 4.5);
-            halo.addColorStop(0, "rgba(0,0,0,0)");
-            halo.addColorStop(0.25, "rgba(70,0,180,0.12)");
-            halo.addColorStop(0.55, "rgba(0,60,220,0.07)");
-            halo.addColorStop(1, "rgba(0,0,0,0)");
-            ctx.fillStyle = halo;
-            ctx.beginPath();
-            ctx.arc(bh.x, bh.y, hr * 4.5, 0, Math.PI * 2);
-            ctx.fill();
-
-            const rh = ringHues[ringHueIdx];
-            ctx.beginPath();
-            ctx.arc(bh.x, bh.y, hr * 1.18, 0, Math.PI * 2);
-            ctx.strokeStyle = `hsla(${rh},100%,72%,${0.32 + Math.sin(t * 2.5) * 0.1})`;
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-
-            const body = ctx.createRadialGradient(bh.x, bh.y, 0, bh.x, bh.y, hr);
-            body.addColorStop(0, "rgb(0,0,0)");
-            body.addColorStop(0.75, "rgba(10,0,30,0.97)");
-            body.addColorStop(0.92, "rgba(50,0,110,0.55)");
-            body.addColorStop(1, "rgba(0,0,0,0)");
-            ctx.fillStyle = body;
-            ctx.beginPath();
-            ctx.arc(bh.x, bh.y, hr, 0, Math.PI * 2);
-            ctx.fill();
-
-            // ---- FLASH BLOOM ----
-            if (flashAlpha > 0.005) {
-                const fl = ctx.createRadialGradient(bh.x, bh.y, 0, bh.x, bh.y, Math.max(width, height) * 0.7);
-                fl.addColorStop(0, `rgba(255,255,255,${flashAlpha})`);
-                fl.addColorStop(0.15, `hsla(${rh},100%,80%,${flashAlpha * 0.6})`);
-                fl.addColorStop(0.5, `hsla(${rh},100%,50%,${flashAlpha * 0.15})`);
-                fl.addColorStop(1, "rgba(0,0,0,0)");
-                ctx.fillStyle = fl;
-                ctx.fillRect(0, 0, width, height);
-            }
-
-            requestAnimationFrame(draw);
-        }
-        draw();
-
-        // ---- EERIE MUSIC ENGINE ---- (C natural/harmonic minor)
-        let audioCtx = null;
-        let masterVol = null;
-        let echoIn = null;
-        let reverbIn = null;
-        let stepIndex = 0;
-        let nextStepTime = 0;
-        let loopCount = 0;
-        let curMelIdx = 0;
-        let curShimIdx = 0;
-        let curBassIdx = 0;
-
-        const BPM = 130;
-        const S = 60 / BPM / 4;  // 16th note at 130 BPM ≈ 0.115 s
-
-        const N = {
-            _: 0,
-            C2: 65.41,  G2: 98.00,  Ab2: 103.83, Bb2: 116.54,
-            C3: 130.81, D3: 146.83, Eb3: 155.56,  F3: 174.61,  G3: 196.00,  Ab3: 207.65, Bb3: 233.08, B3: 246.94,
-            C4: 261.63, D4: 293.66, Eb4: 311.13,  F4: 349.23,  G4: 392.00,  Ab4: 415.30, Bb4: 466.16, B4: 493.88,
-            C5: 523.25, D5: 587.33, Eb5: 622.25,  F5: 698.46,  G5: 783.99,  Ab5: 830.61,
-        };
-
-        // MEL_A: Cm → Ab → Bb → G dominant cycling arpeggio (every 16th note)
-        const MEL_A = [
-            N.C4,  N.Eb4, N.G4,  N.C5,  N.G4,  N.Eb4, N.C4,  N.G3,
-            N.Ab3, N.C4,  N.Eb4, N.Ab4, N.Eb4, N.C4,  N.Ab3, N.G3,
-            N.Bb3, N.D4,  N.F4,  N.Bb4, N.F4,  N.D4,  N.Bb3, N.G3,
-            N.G3,  N.B3,  N.D4,  N.G4,  N.F4,  N.Eb4, N.D4,  N.C4,
-        ];
-        // MEL_B: Dm7b5 (half-diminished) — the darkest chord in C minor
-        const MEL_B = [
-            N.D4,  N.F4,  N.Ab4, N.C5,  N.Ab4, N.F4,  N.D4,  N.F4,
-            N.D4,  N.Ab4, N.C5,  N.Eb5, N.C5,  N.Ab4, N.F4,  N.D4,
-            N.Eb4, N.G4,  N.Bb4, N.Eb5, N.Bb4, N.G4,  N.Eb4, N.Bb3,
-            N.C4,  N.Eb4, N.G4,  N.Bb4, N.Ab4, N.F4,  N.Eb4, N.D4,
-        ];
-        // MEL_C: fast descending Phrygian run + rising resolve
-        const MEL_C = [
-            N.Ab4, N.G4,  N.F4,  N.Eb4, N.D4,  N.C4,  N.B3,  N.C4,
-            N.Eb4, N.D4,  N.C4,  N.Bb3, N.Ab3, N.G3,  N.Ab3, N.Bb3,
-            N.C4,  N.Eb4, N.G4,  N.Ab4, N.G4,  N.F4,  N.Eb4, N.D4,
-            N.C4,  N.Eb4, N.G4,  N.C5,  N.Bb4, N.Ab4, N.G4,  N.C4,
-        ];
-        // MEL_D: wide octave leaps — ghostly, disorienting
-        const MEL_D = [
-            N.C5,  N.G4,  N.Eb4, N.C4,  N.G4,  N.C5,  N.Eb5, N.C5,
-            N.Ab4, N.Eb4, N.C4,  N.Ab3, N.C4,  N.Eb4, N.Ab4, N.C5,
-            N.Bb4, N.F4,  N.D4,  N.Bb3, N.D4,  N.F4,  N.Bb4, N.F5,
-            N.G4,  N.D4,  N.B3,  N.G3,  N.B3,  N.D4,  N.G4,  N.B4,
-        ];
-
-        // Shimmer: sparse high notes every 4 steps (quarter note pulse)
-        const SHIM_A = [
-            N.G5,  N._, N._, N._, N.Eb5, N._, N._, N._,
-            N.C5,  N._, N._, N._, N.Ab4, N._, N._, N._,
-            N.G5,  N._, N._, N._, N.Eb5, N._, N._, N._,
-            N.C5,  N._, N._, N._, N.Ab5, N._, N._, N._,
-        ];
-        const SHIM_B = [
-            N._, N._, N.Eb5, N._, N._, N._, N.G5,  N._,
-            N._, N._, N.C5,  N._, N._, N._, N.Ab5, N._,
-            N._, N._, N.D5,  N._, N._, N._, N.F5,  N._,
-            N._, N._, N.Eb5, N._, N._, N._, N.C5,  N._,
-        ];
-        const SHIM_C = [
-            N.Ab5, N._, N._, N._, N._, N._, N._, N._,
-            N.G5,  N._, N._, N._, N._, N._, N._, N._,
-            N._,   N._, N._, N._, N.Eb5, N._, N._, N._,
-            N._,   N._, N._, N._, N.C5,  N._, N._, N._,
-        ];
-
-        // Bass: slow pedal notes every 8 steps (half-note pulse)
-        const BASS_A = [
-            N.C2,  N._, N._, N._, N._, N._, N._, N._,
-            N.G2,  N._, N._, N._, N._, N._, N._, N._,
-            N.Ab2, N._, N._, N._, N._, N._, N._, N._,
-            N.G2,  N._, N._, N._, N._, N._, N._, N._,
-        ];
-        const BASS_B = [
-            N.Ab2, N._, N._, N._, N._, N._, N._, N._,
-            N.Bb2, N._, N._, N._, N._, N._, N._, N._,
-            N.C3,  N._, N._, N._, N._, N._, N._, N._,
-            N.G2,  N._, N._, N._, N._, N._, N._, N._,
-        ];
-
-        const MELODIES  = [MEL_A, MEL_B, MEL_C, MEL_D];
-        const SHIMMERS  = [SHIM_A, SHIM_B, SHIM_C];
-        const BASSES    = [BASS_A, BASS_B];
-
-        const GHOST_POOL = [N.C5, N.Eb5, N.G5, N.Ab5, N.Bb4, N.F5, N.D5, N.Ab4];
-        const PAD_CHORDS = [
-            [N.C3, N.Eb3, N.G3],   // Cm
-            [N.Ab2, N.C3, N.Eb3],  // Ab
-            [N.Bb2, N.D3, N.F3],   // Bb
-            [N.G2, N.B3, N.D3],    // G (harmonic V)
-            [N.F3, N.Ab3, N.C4],   // Fm
-        ];
-
-        function ensureAudio() {
-            if (audioCtx) return;
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            masterVol = audioCtx.createGain();
-            masterVol.gain.value = 0.14;
-            masterVol.connect(audioCtx.destination);
-
-            // Short rhythmic echo
-            const delay = audioCtx.createDelay(2.0);
-            const feedback = audioCtx.createGain();
-            const wetGain = audioCtx.createGain();
-            delay.delayTime.value = S * 4;  // quarter-note echo at current tempo
-            feedback.gain.value = 0.48;
-            wetGain.gain.value = 0.28;
-            delay.connect(feedback);
-            feedback.connect(delay);
-            delay.connect(wetGain);
-            wetGain.connect(masterVol);
-            echoIn = delay;
-
-            // Long cave reverb (separate chain)
-            const cave = audioCtx.createDelay(4.0);
-            const caveFb = audioCtx.createGain();
-            const caveWet = audioCtx.createGain();
-            cave.delayTime.value = 1.8;
-            caveFb.gain.value = 0.35;
-            caveWet.gain.value = 0.12;
-            cave.connect(caveFb);
-            caveFb.connect(cave);
-            cave.connect(caveWet);
-            caveWet.connect(masterVol);
-            reverbIn = cave;
-
-            // C minor drone: tonic + fifth + octave, micro-detuned for beating
-            const droneGain = audioCtx.createGain();
-            droneGain.gain.setValueAtTime(0, audioCtx.currentTime);
-            droneGain.gain.linearRampToValueAtTime(0.22, audioCtx.currentTime + 8);
-            droneGain.connect(masterVol);
-            droneGain.connect(echoIn);
-            [N.C2, N.C2 * 1.007, N.G2, N.G2 * 0.994, N.C3 * 0.998].forEach(freq => {
-                const o = audioCtx.createOscillator();
-                o.type = "sine";
-                o.frequency.value = freq;
-                o.connect(droneGain);
-                o.start();
-            });
-
-            nextStepTime = audioCtx.currentTime + 0.05;
-            tick();
-        }
-
-        function tone(freq, start, dur, vol, echo = false, type = "sine") {
-            if (!freq || !audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.value = freq;
-            const attack = Math.min(dur * 0.25, 0.4);
-            g.gain.setValueAtTime(0.0001, start);
-            g.gain.exponentialRampToValueAtTime(vol, start + attack);
-            g.gain.setValueAtTime(vol, start + dur * 0.6);
-            g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-            osc.connect(g);
-            g.connect(masterVol);
-            if (echo) g.connect(echoIn);
-            osc.start(start);
-            osc.stop(start + dur + 0.05);
-        }
-
-        // Slow-attack sustained chord cluster
-        function pad(freqs, start, dur, vol) {
-            if (!audioCtx) return;
-            freqs.forEach(f => {
-                const osc = audioCtx.createOscillator();
-                const g = audioCtx.createGain();
-                osc.type = "triangle";
-                osc.frequency.value = f * (1 + (Math.random() - 0.5) * 0.005);
-                const attack = dur * 0.3;
-                g.gain.setValueAtTime(0.0001, start);
-                g.gain.exponentialRampToValueAtTime(vol, start + attack);
-                g.gain.setValueAtTime(vol, start + dur * 0.75);
-                g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-                osc.connect(g);
-                g.connect(masterVol);
-                if (reverbIn) g.connect(reverbIn);
-                osc.start(start);
-                osc.stop(start + dur + 0.1);
-            });
-        }
-
-        // Bandpass-filtered wind breath texture
-        function breathNoise(start, dur) {
-            if (!audioCtx) return;
-            const bufLen = Math.floor(audioCtx.sampleRate * Math.min(dur, 8));
-            const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
-            const data = buf.getChannelData(0);
-            for (let i = 0; i < bufLen; i++) {
-                data[i] = (Math.random() * 2 - 1) * Math.pow(Math.sin(Math.PI * i / bufLen), 2);
-            }
-            const noise = audioCtx.createBufferSource();
-            const bp = audioCtx.createBiquadFilter();
-            bp.type = "bandpass";
-            bp.frequency.value = 600 + Math.random() * 600;
-            bp.Q.value = 0.4;
-            const g = audioCtx.createGain();
-            g.gain.value = 0.01;
-            noise.buffer = buf;
-            noise.connect(bp);
-            bp.connect(g);
-            g.connect(masterVol);
-            g.connect(echoIn);
-            noise.start(start);
-        }
-
-        // ---- CLICK BOOM: gravitational thud + filtered noise impact ----
-        function playBoom() {
-            if (!audioCtx) return;
-            const now = audioCtx.currentTime;
-
-            // Sub-bass sine that drops in pitch (gravitational shock)
-            const osc = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            osc.type = "sine";
-            osc.frequency.setValueAtTime(120, now);
-            osc.frequency.exponentialRampToValueAtTime(28, now + 0.55);
-            g.gain.setValueAtTime(0.0001, now);
-            g.gain.exponentialRampToValueAtTime(0.55, now + 0.005);
-            g.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
-            osc.connect(g);
-            g.connect(masterVol);
-            g.connect(echoIn);
-            osc.start(now);
-            osc.stop(now + 0.75);
-
-            // Filtered noise burst — the crack of impact, sent through the cave reverb
-            const bufLen = Math.floor(audioCtx.sampleRate * 0.18);
-            const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
-            const data = buf.getChannelData(0);
-            for (let i = 0; i < bufLen; i++) {
-                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 2.5);
-            }
-            const noise = audioCtx.createBufferSource();
-            const noiseG = audioCtx.createGain();
-            const lp = audioCtx.createBiquadFilter();
-            lp.type = "lowpass";
-            lp.frequency.value = 380;
-            lp.Q.value = 1.4;
-            noise.buffer = buf;
-            noiseG.gain.value = 0.22;
-            noise.connect(lp);
-            lp.connect(noiseG);
-            noiseG.connect(masterVol);
-            noiseG.connect(echoIn);
-            noise.start(now);
-        }
-
-        function tick() {
-            if (!audioCtx) return;
-            while (nextStepTime < audioCtx.currentTime + 0.18) {
-                if (stepIndex > 0 && stepIndex % MEL_A.length === 0) {
-                    loopCount++;
-                    // Re-roll all patterns randomly each loop
-                    curMelIdx  = Math.floor(Math.random() * MELODIES.length);
-                    curShimIdx = Math.floor(Math.random() * SHIMMERS.length);
-                    curBassIdx = Math.floor(Math.random() * BASSES.length);
-                    // Pad chord every other loop
-                    if (loopCount % 2 === 0) {
-                        const chord = PAD_CHORDS[Math.floor(Math.random() * PAD_CHORDS.length)];
-                        pad(chord, nextStepTime, S * MEL_A.length * 1.8, 0.032);
-                    }
-                    // Atmospheric breath noise ~45% of loops
-                    if (Math.random() < 0.45) {
-                        breathNoise(nextStepTime + Math.random() * S * 6, S * 8 + Math.random() * S * 4);
-                    }
-                }
-
-                const mel  = MELODIES[curMelIdx];
-                const shim = SHIMMERS[curShimIdx];
-                const bass = BASSES[curBassIdx];
-                const i = stepIndex % mel.length;
-
-                if (mel[i])  tone(mel[i],  nextStepTime, S * 1.4, 0.48, true,  "triangle");
-                if (shim[i]) tone(shim[i], nextStepTime, S * 4.0, 0.07, false, "sine");
-                if (bass[i]) tone(bass[i], nextStepTime, S * 7.5, 0.42, true,  "sine");
-
-                // ~3% chance of ghost note per step (less frequent at fast tempo)
-                if (Math.random() < 0.03) {
-                    const ghost = GHOST_POOL[Math.floor(Math.random() * GHOST_POOL.length)];
-                    tone(ghost, nextStepTime + Math.random() * S * 0.5, S * 3.0, 0.038, true, "sine");
-                }
-
-                nextStepTime += S;
-                stepIndex++;
-            }
-            setTimeout(tick, 50);
-        }
-
-        // Try autoplay — works in non-Chrome and when Chrome's media-engagement
-        // score has already been earned by prior visits.
-        window.addEventListener("load", () => { ensureAudio(); audioCtx.resume().catch(() => { }); });
-        window.addEventListener("mousemove", () => { ensureAudio(); audioCtx.resume().catch(() => { }); }, { once: true });
-
-        // ---- CONTACT OVERLAY ----
-        const contactOverlay = document.getElementById('contact-overlay');
-
-        function showContactOverlay() {
-            setTimeout(() => contactOverlay.classList.add('visible'), 100);
-        }
-
-        function closeContactOverlay() {
-            contactOverlay.classList.remove('visible');
-            setTimeout(() => {
-                const c = cardObjs.find(o => o.el.id === 'card-contact');
-                if (!c) return;
-                const pad = 40;
-                c.x = pad + Math.random() * (width - c.w - pad * 2);
-                c.y = pad + Math.random() * (height - c.h - pad * 2);
-                c.vx = (Math.random() - 0.5) * 0.35;
-                c.vy = (Math.random() - 0.5) * 0.35;
-                c.suckSpin = 0;
-                c.driftCooldown = 4000 + Math.random() * 8000;
-                c.drifting = false;
-                c.el.style.opacity = '1';
-                c.el.style.visibility = 'visible';
-            }, 750);
-        }
-
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && contactOverlay.classList.contains('visible')) {
-                closeContactOverlay();
-            }
-        });
-
-        // ---- CLICK: start audio + cycle ring colour + spawn shockwaves + boom ----
-        window.addEventListener("click", () => {
-            ensureAudio();
-            if (audioCtx.state === "suspended") audioCtx.resume();
-
-            playBoom();
-
-            ringHueIdx = (ringHueIdx + 1) % ringHues.length;
-            distortSpike = 1.0;
-            flashAlpha = 0.55;
-
-            const baseHue = ringHues[ringHueIdx];
-            for (let i = 0; i < 5; i++) {
-                shockwaves.push({
-                    x: bh.x, y: bh.y,
-                    age: -i * 0.08,
-                    hue: (baseHue + i * 40) % 360
-                });
-            }
-        });
-    </script>
+      }
+    }
+  }
+  /* rug border */
+  g.strokeStyle = "#3e7a3e"; g.lineWidth = 1;
+  g.strokeRect(6*TILE+0.5, 5*TILE+0.5, 4*TILE-1, 3*TILE-1);
+}
+
+/* ---- Furniture ---- */
+function drawBookshelf(g, tx, ty){       // 1 wide, spans ty-1..ty
+  tilePx(g,"#20242c",tx,ty-1,0,2,16,30);
+  tilePx(g,"#8a5c38",tx,ty-1,1,3,14,28);
+  tilePx(g,"#6e4628",tx,ty-1,1,3,14,2);
+  const shelves = [[tx,ty-1,7],[tx,ty-1,15],[tx,ty,7]];
+  const cols = ["#d05048","#4878c8","#48a058","#d8a040","#9858b8","#d05048"];
+  let ci = (tx*3)%3;
+  for (const [sx,sy,off] of shelves){
+    for (let b=0;b<4;b++){
+      tilePx(g,cols[(ci++)%cols.length],sx,sy,2+b*3,off-5,2,5);
+      tilePx(g,"#20242c",sx,sy,2+b*3,off-5,2,1);
+    }
+    tilePx(g,"#5c3a20",sx,sy,1,off,14,2);
+  }
+  tilePx(g,"#5c3a20",tx,ty,1,13,14,3);
+}
+function drawPC(g, tx, ty){              // desk + computer
+  tilePx(g,"#20242c",tx,ty,0,10,16,6);   // desk shadow
+  tilePx(g,"#b08050",tx,ty,0,9,16,6);
+  tilePx(g,"#8a5c38",tx,ty,0,13,16,2);
+  tilePx(g,"#20242c",tx,ty,2,0,12,10);   // monitor
+  tilePx(g,"#c8c8d0",tx,ty,3,1,10,8);
+  tilePx(g,"#50e8b0",tx,ty,4,2,8,6);     // glowing screen
+  tilePx(g,"#307860",tx,ty,4,6,8,2);
+  tilePx(g,"#f8f8f8",tx,ty,5,3,3,1);
+  tilePx(g,"#f8f8f8",tx,ty,5,5,5,1);
+}
+function drawTV(g, tx, ty){              // 2 wide
+  tilePx(g,"#8a5c38",tx,ty,0,11,32,5);   // stand
+  tilePx(g,"#6e4628",tx,ty,0,14,32,2);
+  tilePx(g,"#20242c",tx,ty,2,0,28,12);   // tv body
+  tilePx(g,"#383e4c",tx,ty,3,1,26,10);
+  tilePx(g,"#182058",tx,ty,4,2,24,8);    // screen
+  tilePx(g,"#3858c8",tx,ty,5,3,10,3);
+  tilePx(g,"#88a8ff",tx,ty,6,4,4,1);
+  tilePx(g,"#d84840",tx,ty,24,9,2,1);    // power light
+}
+function drawPoster(g, tx, ty){
+  tilePx(g,"#20242c",tx,ty,2,1,12,13);
+  tilePx(g,"#f8f0d8",tx,ty,3,2,10,11);
+  tilePx(g,"#d84840",tx,ty,5,4,6,4);     // little pixel heart-ish art
+  tilePx(g,"#d84840",tx,ty,4,5,8,2);
+  tilePx(g,"#3870c0",tx,ty,5,9,6,2);
+}
+function drawTable(g, tx, ty){           // 2 wide, with note
+  tilePx(g,"#20242c",tx,ty,1,3,30,12);
+  tilePx(g,"#c89858",tx,ty,1,2,30,10);
+  tilePx(g,"#b08050",tx,ty,1,2,30,2);
+  tilePx(g,"#8a5c38",tx,ty,2,12,3,3);
+  tilePx(g,"#8a5c38",tx,ty,27,12,3,3);
+  tilePx(g,"#f8f8f0",tx,ty,11,4,10,7);   // the note
+  tilePx(g,"#a8a8b0",tx,ty,12,6,8,1);
+  tilePx(g,"#a8a8b0",tx,ty,12,8,6,1);
+}
+function drawPlant(g, tx, ty){
+  tilePx(g,"#b04838",tx,ty,4,9,8,6);
+  tilePx(g,"#8c2f24",tx,ty,4,13,8,2);
+  tilePx(g,"#d86048",tx,ty,4,9,8,1);
+  tilePx(g,"#2f7a3a",tx,ty,6,2,4,8);
+  tilePx(g,"#3f9a4a",tx,ty,2,3,5,4);
+  tilePx(g,"#3f9a4a",tx,ty,9,3,5,4);
+  tilePx(g,"#57b862",tx,ty,6,0,4,4);
+}
+function drawBed(g, tx, ty){             // 1 wide, 2 tall
+  tilePx(g,"#20242c",tx,ty,0,0,16,32);
+  tilePx(g,"#c8b090",tx,ty,1,0,14,4);    // headboard
+  tilePx(g,"#f8f8f0",tx,ty,2,3,12,6);    // pillow
+  tilePx(g,"#d8d8d0",tx,ty,2,7,12,2);
+  tilePx(g,"#d05048",tx,ty,1,9,14,20);   // blanket
+  tilePx(g,"#a83830",tx,ty,1,9,14,2);
+  tilePx(g,"#f0e8e0",tx,ty,1,26,14,3);
+  tilePx(g,"#a83830",tx,ty,1,29,14,2);
+}
+function drawMat(g, tx, ty){             // 2 wide doormat
+  tilePx(g,"#8c94a8",tx,ty,1,2,30,12);
+  tilePx(g,"#6e768a",tx,ty,1,2,30,2);
+  tilePx(g,"#6e768a",tx,ty,1,12,30,2);
+  tilePx(g,"#aab2c6",tx,ty,3,5,26,6);
+  tilePx(g,"#6e768a",tx,ty,6,7,4,2);
+  tilePx(g,"#6e768a",tx,ty,14,7,4,2);
+  tilePx(g,"#6e768a",tx,ty,22,7,4,2);
+}
+function drawMountainWindow(g, tx, ty){  // 2 tiles wide, mountain view
+  tilePx(g,"#4a3826",tx,ty,0,0,32,15);   // frame
+  tilePx(g,"#5c4630",tx,ty,0,0,32,1);
+  tilePx(g,"#9cd4f0",tx,ty,2,2,28,11);   // sky
+  tilePx(g,"#c2e8ff",tx,ty,2,2,28,3);
+  tilePx(g,"#ffd83c",tx,ty,24,3,4,4);    // sun
+  tilePx(g,"#fff0a0",tx,ty,25,4,2,2);
+  /* far peak */
+  for (let i=0;i<6;i++) tilePx(g,"#7a86a8",tx,ty,8-i,7+i,2+i*2,1);
+  tilePx(g,"#f0f6ff",tx,ty,7,7,4,2);     // snow cap
+  /* near peak */
+  for (let i=0;i<7;i++) tilePx(g,"#5a6890",tx,ty,19-i,6+i,2+i*2,1);
+  tilePx(g,"#f8fbff",tx,ty,18,6,4,2);
+  tilePx(g,"#e2ecff",tx,ty,17,8,3,1);
+  /* foothills */
+  tilePx(g,"#4f8a58",tx,ty,2,12,28,1);
+  tilePx(g,"#5fa068",tx,ty,2,11,10,1);
+  tilePx(g,"#5fa068",tx,ty,22,11,8,1);
+  /* mullions */
+  tilePx(g,"#4a3826",tx,ty,15,2,2,11);
+  tilePx(g,"#4a3826",tx,ty,0,13,32,2);   // sill
+  tilePx(g,"#6a523a",tx,ty,0,13,32,1);
+}
+function drawConsole(g, tx, ty){         // gaming corner: console + controllers
+  tilePx(g,"#8a5c38",tx,ty,0,10,16,6);   // low cabinet
+  tilePx(g,"#6e4628",tx,ty,0,14,16,2);
+  tilePx(g,"#a8764a",tx,ty,1,10,14,1);
+  tilePx(g,"#20242c",tx,ty,3,6,10,4);    // console box
+  tilePx(g,"#383e4c",tx,ty,4,7,8,1);
+  tilePx(g,"#58e858",tx,ty,11,8,1,1);    // power LED
+  tilePx(g,"#d84840",tx,ty,2,2,5,3);     // red controller
+  tilePx(g,"#20242c",tx,ty,3,3,1,1);
+  tilePx(g,"#3870c0",tx,ty,9,2,5,3);     // blue controller
+  tilePx(g,"#20242c",tx,ty,12,3,1,1);
+  tilePx(g,"#20242c",tx,ty,7,3,2,1);     // cable between them
+}
+function drawGuitar(g, tx, ty){          // acoustic guitar on a stand (tall)
+  tilePx(g,"#20242c",tx,ty-1,7,0,2,4);   // headstock
+  tilePx(g,"#8a5c38",tx,ty-1,7,1,2,2);
+  tilePx(g,"#5c3a20",tx,ty-1,7,4,2,10);  // neck
+  tilePx(g,"#d8c8a0",tx,ty-1,7,6,2,1);   // fret glints
+  tilePx(g,"#d8c8a0",tx,ty-1,7,9,2,1);
+  tilePx(g,"#20242c",tx,ty,3,0,10,12);   // body outline
+  tilePx(g,"#c08a58",tx,ty,4,1,8,10);    // body
+  tilePx(g,"#a8764a",tx,ty,4,5,8,1);     // waist shading
+  tilePx(g,"#20242c",tx,ty,6,4,4,4);     // sound hole
+  tilePx(g,"#181820",tx,ty,7,5,2,2);
+  tilePx(g,"#e8dcb8",tx,ty,7,1,1,10);    // strings
+  tilePx(g,"#5c3a20",tx,ty,2,12,12,2);   // stand base
+  tilePx(g,"#3e2814",tx,ty,2,13,12,1);
+}
+function drawCoffee(g, tx, ty){          // 2-wide coffee station
+  tilePx(g,"#20242c",tx,ty,0,7,32,9);    // counter outline
+  tilePx(g,"#b08050",tx,ty,1,7,30,8);    // counter body
+  tilePx(g,"#c89858",tx,ty,1,7,30,2);    // counter top
+  tilePx(g,"#8a5c38",tx,ty,1,12,30,3);
+  /* espresso machine (left) */
+  tilePx(g,"#20242c",tx,ty,2,0,9,8);
+  tilePx(g,"#c8ccd4",tx,ty,3,1,7,6);
+  tilePx(g,"#888e9a",tx,ty,3,1,7,1);
+  tilePx(g,"#d84840",tx,ty,8,2,1,1);     // brew light
+  tilePx(g,"#20242c",tx,ty,5,5,3,2);     // portafilter
+  /* gooseneck kettle (middle) */
+  tilePx(g,"#384050",tx,ty,14,2,5,5);
+  tilePx(g,"#586078",tx,ty,15,2,3,1);
+  tilePx(g,"#384050",tx,ty,12,4,2,1);    // spout
+  tilePx(g,"#20242c",tx,ty,19,3,1,3);    // handle
+  /* V60 pour-over (right) */
+  tilePx(g,"#e07830",tx,ty,24,2,6,3);    // cone
+  tilePx(g,"#c05c20",tx,ty,25,5,4,1);
+  tilePx(g,"#a8d8f0",tx,ty,25,6,4,1);    // glass server
+  tilePx(g,"#5c3210",tx,ty,26,6,2,1);    // coffee!
+  /* steam */
+  tilePx(g,"#f0f4f8",tx,ty,16,0,1,1);
+  tilePx(g,"#f0f4f8",tx,ty,17,1,1,1);
+  tilePx(g,"#f0f4f8",tx,ty,26,0,1,1);
+}
+
+function bakeBackground(){
+  drawRoom(bgx);
+  for (const o of OBJECTS){
+    const [x,y] = o.tiles[0];
+    if (o.key==="bookshelf"){ drawBookshelf(bgx,1,1); drawBookshelf(bgx,2,1); }
+    else if (o.key==="pc") drawPC(bgx,x,y);
+    else if (o.key==="tv") drawTV(bgx,x,y);
+    else if (o.key==="console") drawConsole(bgx,x,y);
+    else if (o.key==="window") drawMountainWindow(bgx,x,y);
+    else if (o.key==="poster") drawPoster(bgx,x,y);
+    else if (o.key==="note") drawTable(bgx,x,y);
+    else if (o.key==="plant") drawPlant(bgx,x,y);
+    else if (o.key==="bed") drawBed(bgx,x,y);
+    else if (o.key==="guitar") drawGuitar(bgx,x,y);
+    else if (o.key==="coffee") drawCoffee(bgx,x,y);
+    else if (o.key==="mat") drawMat(bgx,x,y);
+  }
+}
+bakeBackground();
+
+/* ---------------- Audio (Web Audio chiptune) ---------------- */
+let AC = null, masterGain, musicGain, sfxGain, musicOn = true, musicTimer = null;
+let noiseBuf = null;
+
+function initAudio(){
+  if (AC) return;
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = AC.createGain(); masterGain.gain.value = 0.55; masterGain.connect(AC.destination);
+  musicGain  = AC.createGain(); musicGain.gain.value  = musicOn ? 0.16 : 0; musicGain.connect(masterGain);
+  sfxGain    = AC.createGain(); sfxGain.gain.value    = 0.5;  sfxGain.connect(masterGain);
+  noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.5, AC.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
+  startMusic();
+}
+
+const f = m => 440 * Math.pow(2, (m-69)/12);
+
+function tone(dest, type, midi, t, dur, vol, slideTo){
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f(midi), t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(f(slideTo), t+dur);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t+dur);
+  o.connect(g); g.connect(dest);
+  o.start(t); o.stop(t+dur+0.02);
+}
+function hat(t, vol){
+  const s = AC.createBufferSource(); s.buffer = noiseBuf;
+  const g = AC.createGain(), hp = AC.createBiquadFilter();
+  hp.type="highpass"; hp.frequency.value = 6500;
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t+0.05);
+  s.connect(hp); hp.connect(g); g.connect(musicGain);
+  s.start(t); s.stop(t+0.06);
+}
+
+/* A cheery 8-bar loop: melody / harmony / bass / hats */
+const BPM = 132, EIGHTH = 60/BPM/2;
+const MELODY = [   // one entry per eighth note (32 = 4 bars), 0 = rest
+  72,0,76,0, 79,0,76,74,   74,0,71,0, 67,0,71,74,
+  76,0,72,0, 69,0,72,76,   77,76,74,0, 72,0,74,0,
+  72,0,76,0, 79,0,81,79,   79,0,74,0, 71,0,74,79,
+  76,0,79,0, 84,0,81,79,   77,79,81,0, 84,0,0,0,
+];
+const BASSROOT = [48,43,45,41, 48,43,45,43]; // C G Am F | C G Am G (one per bar)
+const LOOP_EIGHTHS = MELODY.length;
+
+let musNext = 0, musStep = 0;
+function scheduleMusic(){
+  if (!AC || !musicOn) return;
+  if (musNext < AC.currentTime) musNext = AC.currentTime + 0.02;
+  while (musNext < AC.currentTime + 0.12){
+    const i = musStep % LOOP_EIGHTHS;
+    const bar = Math.floor(i/8);
+    const m = MELODY[i];
+    if (m) tone(musicGain, "square", m, musNext, EIGHTH*0.9, 0.30);
+    if (i%2===0){
+      const r = BASSROOT[bar % BASSROOT.length];
+      tone(musicGain, "triangle", (i%8===4)? r+7 : r, musNext, EIGHTH*0.95, 0.5);
+      hat(musNext, (i%8===0)? 0.12 : 0.05);
+    }
+    musNext += EIGHTH; musStep++;
+  }
+}
+function startMusic(){
+  musNext = AC.currentTime + 0.05; musStep = 0;
+  if (musicTimer) clearInterval(musicTimer);
+  musicTimer = setInterval(scheduleMusic, 30);
+}
+function setMusic(on){
+  musicOn = on;
+  document.getElementById("muteBtn").textContent = on ? "♪ MUSIC: ON" : "♪ MUSIC: OFF";
+  if (AC) musicGain.gain.setTargetAtTime(on ? 0.16 : 0, AC.currentTime, 0.05);
+}
+
+/* SFX */
+const sfx = {
+  bump(){ if(!AC) return; tone(sfxGain,"square",45,AC.currentTime,0.09,0.35,40); },
+  confirm(){ if(!AC) return; const t=AC.currentTime;
+    tone(sfxGain,"square",76,t,0.06,0.3); tone(sfxGain,"square",83,t+0.07,0.09,0.3); },
+  close(){ if(!AC) return; const t=AC.currentTime;
+    tone(sfxGain,"square",83,t,0.05,0.25); tone(sfxGain,"square",76,t+0.06,0.08,0.25); },
+  blip(){ if(!AC) return; tone(sfxGain,"square",88,AC.currentTime,0.025,0.12); },
+  step(){ if(!AC) return; tone(sfxGain,"triangle",52,AC.currentTime,0.04,0.12); },
+  guitar(){ if(!AC) return;               // E-minor strum, one string at a time
+    const strings = [40,47,52,55,59,64];
+    strings.forEach((m,i)=>{
+      const t = AC.currentTime + i*0.045;
+      tone(sfxGain,"triangle",m,t,0.55,0.22);
+      tone(sfxGain,"square",m+12,t,0.18,0.05);   // pick attack sparkle
+    });
+  },
+  brew(){ if(!AC) return;                  // bubbling coffee gurgle
+    const t0 = AC.currentTime;
+    const s = AC.createBufferSource(); s.buffer = noiseBuf;
+    const g = AC.createGain(), lp = AC.createBiquadFilter();
+    lp.type="lowpass"; lp.frequency.value = 420;
+    g.gain.setValueAtTime(0.12, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0+0.7);
+    s.connect(lp); lp.connect(g); g.connect(sfxGain);
+    s.start(t0); s.stop(t0+0.7);
+    [0.08,0.22,0.38,0.52].forEach((d,i)=>
+      tone(sfxGain,"sine",55+((i*5)%9),t0+d,0.07,0.10,60+i));
+  },
+};
+
+/* ---------------- Input ---------------- */
+const held = { up:false, down:false, left:false, right:false };
+let actionQueued = false;
+
+const KEYMAP = {
+  ArrowUp:"up", ArrowDown:"down", ArrowLeft:"left", ArrowRight:"right",
+  w:"up", s:"down", a:"left", d:"right", W:"up", S:"down", A:"left", D:"right",
+};
+window.addEventListener("keydown", e=>{
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) e.preventDefault();
+  if (titleShowing && (e.key==="Enter" || e.key===" " || e.key==="z" || e.key==="Z")) { startGame(); return; }
+  if (KEYMAP[e.key]) held[KEYMAP[e.key]] = true;
+  if (["z","Z","Enter"," "].includes(e.key) && !e.repeat) actionQueued = true;
+  if (e.key==="m" || e.key==="M") setMusic(!musicOn);
+});
+window.addEventListener("keyup", e=>{ if (KEYMAP[e.key]) held[KEYMAP[e.key]] = false; });
+
+/* Touch controls */
+function bindTouch(id, dir){
+  const el = document.getElementById(id);
+  const on  = ev=>{ ev.preventDefault(); held[dir]=true; el.classList.add("held"); if(titleShowing) startGame(); };
+  const off = ev=>{ ev.preventDefault(); held[dir]=false; el.classList.remove("held"); };
+  el.addEventListener("touchstart",on); el.addEventListener("touchend",off); el.addEventListener("touchcancel",off);
+  el.addEventListener("mousedown",on);  el.addEventListener("mouseup",off);  el.addEventListener("mouseleave",off);
+}
+bindTouch("dUp","up"); bindTouch("dDown","down"); bindTouch("dLeft","left"); bindTouch("dRight","right");
+document.getElementById("aBtn").addEventListener("touchstart", e=>{ e.preventDefault(); titleShowing ? startGame() : actionQueued = true; });
+document.getElementById("aBtn").addEventListener("mousedown", e=>{ e.preventDefault(); titleShowing ? startGame() : actionQueued = true; });
+document.getElementById("muteBtn").addEventListener("click", ()=> setMusic(!musicOn));
+
+/* ---------------- Player (free 8-way movement) ---------------- */
+const player = {
+  px:7*TILE, py:8*TILE,     // pixel position (top-left of 16px sprite base)
+  facing:"up",
+  moving:false, animDist:0, stepAcc:0, bumpCd:0,
+};
+const SPEED = 96;           // pixels per second — snappy!
+
+/* Feet-area hitbox (head can overlap furniture above, GBA-style) */
+function hitboxCollides(x, y){
+  const l = x+3, r = x+12, t = y+6, b = y+15;
+  const x0 = Math.floor(l/TILE), x1 = Math.floor(r/TILE);
+  const y0 = Math.floor(t/TILE), y1 = Math.floor(b/TILE);
+  for (let ty=y0; ty<=y1; ty++)
+    for (let tx=x0; tx<=x1; tx++)
+      if (tx<0||ty<0||tx>=MAP_W||ty>=MAP_H||solid.has(tx+","+ty)) return true;
+  return false;
+}
+function playerTile(){
+  return [Math.floor((player.px+8)/TILE), Math.floor((player.py+11)/TILE)];
+}
+function facingTile(){
+  const d = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] }[player.facing];
+  const [tx,ty] = playerTile();
+  return [tx+d[0], ty+d[1]];
+}
+
+/* ---------------- Dialog system ---------------- */
+const dlg   = document.getElementById("dialog");
+const dlgT  = document.getElementById("dlgTitle");
+const dlgX  = document.getElementById("dlgText");
+const dlgN  = document.getElementById("dlgNext");
+let dialogOpen = false, pages = [], pageIdx = 0, charIdx = 0, typing = false, typeTimer = null;
+
+function openDialog(content, key){
+  dialogOpen = true; pages = content.pages; pageIdx = 0;
+  dlgT.textContent = content.title;
+  dlg.classList.add("open");
+  if (key === "guitar") sfx.guitar();
+  else if (key === "coffee") sfx.brew();
+  else sfx.confirm();
+  showPage();
+}
+function showPage(){
+  clearInterval(typeTimer);
+  charIdx = 0; typing = true; dlgX.textContent = ""; dlgN.style.visibility = "hidden";
+  const text = pages[pageIdx];
+  typeTimer = setInterval(()=>{
+    charIdx += 1;
+    dlgX.textContent = text.slice(0, charIdx);
+    if (charIdx % 3 === 0) sfx.blip();
+    if (charIdx >= text.length){
+      clearInterval(typeTimer); typing = false; dlgN.style.visibility = "visible";
+      dlgN.textContent = (pageIdx < pages.length-1) ? "▼" : "✕";
+    }
+  }, 18);
+}
+function advanceDialog(){
+  if (typing){                     // fast-forward
+    clearInterval(typeTimer); typing = false;
+    dlgX.textContent = pages[pageIdx];
+    dlgN.style.visibility = "visible";
+    dlgN.textContent = (pageIdx < pages.length-1) ? "▼" : "✕";
+    return;
+  }
+  if (pageIdx < pages.length-1){ pageIdx++; sfx.confirm(); showPage(); }
+  else { dialogOpen = false; dlg.classList.remove("open"); sfx.close(); }
+}
+
+/* ---------------- Title / start ---------------- */
+let titleShowing = true, started = false;
+document.getElementById("titleName").textContent = CONTENT.gameTitle;
+document.getElementById("pressStart").addEventListener("click", startGame);
+
+function startGame(){
+  if (!titleShowing) return;
+  titleShowing = false;
+  document.getElementById("title").style.display = "none";
+  initAudio();
+  if (AC && AC.state === "suspended") AC.resume();
+  if (!started){ started = true; setTimeout(()=> openDialog(CONTENT.intro), 350); }
+}
+
+/* ---------------- Main loop ---------------- */
+let last = performance.now();
+function loop(now){
+  const dt = Math.min((now - last)/1000, 0.05);
+  last = now;
+  update(dt);
+  render(now/1000);
+  requestAnimationFrame(loop);
+}
+
+function update(dt){
+  if (player.bumpCd > 0) player.bumpCd -= dt; else player.bumpCd = 0;
+
+  if (!titleShowing && !dialogOpen){
+    if (actionQueued){
+      actionQueued = false;
+      const [fx,fy] = facingTile();
+      const obj = interact.get(fx+","+fy);
+      if (obj && CONTENT[obj.key]) openDialog(CONTENT[obj.key], obj.key);
+    }
+
+    const dx = (held.right?1:0) - (held.left?1:0);
+    const dy = (held.down?1:0)  - (held.up?1:0);
+    player.moving = !!(dx || dy);
+
+    if (player.moving){
+      /* face horizontal on diagonals (side sprites read best) */
+      if (dx) player.facing = dx > 0 ? "right" : "left";
+      else    player.facing = dy > 0 ? "down"  : "up";
+
+      const inv = (dx && dy) ? Math.SQRT1_2 : 1;   // normalize diagonals
+      const vx = dx * SPEED * inv * dt;
+      const vy = dy * SPEED * inv * dt;
+
+      /* move each axis separately → slide along walls */
+      let moved = 0;
+      if (vx){
+        const nx = player.px + vx;
+        if (!hitboxCollides(nx, player.py)){ player.px = nx; moved += Math.abs(vx); }
+      }
+      if (vy){
+        const ny = player.py + vy;
+        if (!hitboxCollides(player.px, ny)){ player.py = ny; moved += Math.abs(vy); }
+      }
+
+      if (moved > 0.001){
+        player.animDist += moved;
+        player.stepAcc  += moved;
+        if (player.stepAcc >= TILE){ player.stepAcc = 0; sfx.step(); }
+      } else if (!player.bumpCd){
+        sfx.bump(); player.bumpCd = 0.4;
+      }
+    } else {
+      player.animDist = 0; player.stepAcc = TILE * 0.6; // first step sounds quickly
+    }
+  } else if (dialogOpen && actionQueued){
+    actionQueued = false;
+    advanceDialog();
+  } else {
+    actionQueued = false;
+  }
+}
+
+function render(t){
+  ctx.drawImage(bg, 0, 0);
+
+  /* interaction marker over the object you're facing */
+  if (!titleShowing && !dialogOpen){
+    const [fx,fy] = facingTile();
+    const obj = interact.get(fx+","+fy);
+    if (obj && CONTENT[obj.key]){
+      const bobY = Math.floor(Math.sin(t*6)*1.5);
+      const mx = fx*TILE + 8, my = fy*TILE - 6 + bobY;
+      px("#20242c", mx-3, my-1, 7, 7);
+      px("#e04038", mx-2, my,   5, 4);
+      px("#e04038", mx-1, my+4, 3, 1);
+      px("#f8f8f8", mx-1, my+1, 1, 2);
+    }
+  }
+
+  /* player sprite — walk cycle driven by distance traveled */
+  let frame = 0;
+  if (player.moving){
+    const seq = [1, 0, 2, 0];
+    frame = seq[Math.floor(player.animDist / 9) % 4];
+  }
+  ctx.drawImage(SPR[player.facing][frame], Math.round(player.px), Math.round(player.py) - 5);
+}
+requestAnimationFrame(loop);
+</script>
 </body>
-
 </html>
