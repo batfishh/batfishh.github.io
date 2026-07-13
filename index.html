@@ -136,6 +136,9 @@
   @media (pointer:coarse){
     #touchUI{ display:flex; }
     #hint{ display:none; }
+    /* tighten the HUD row so it eats less vertical space on phones */
+    #hud{ margin-top:6px; }
+    #muteBtn{ padding:5px 8px; font-size:7px; }
   }
   .dpad{ position:relative; width:120px; height:120px; }
   .dbtn{
@@ -290,8 +293,8 @@ const CONTENT = {
     title: "CONTACT",
     pages: [
       "There's a neatly folded note on the table...",
-      "EMAIL\nashwin@example.com\n\nGITHUB\ngithub.com/ashwin\n\nLINKEDIN\nlinkedin.com/in/ashwin",
-      "(Replace with your real links!)\nI'm open to interesting work — say hello, I always reply."
+      "EMAIL\nashwin27live@gmail.com\n\nGITHUB\ngithub.com/batfishh\n",
+      "\nI'm open to interesting work — say hello, I always reply."
     ]
   },
 
@@ -330,18 +333,80 @@ const cvs = document.getElementById("game");
 const ctx = cvs.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 
-/* Integer upscale to fit the window */
+/* Fit the canvas (and touch controls) to the available viewport */
 function fitScreen(){
-  const pad = 90;
-  const maxW = Math.min(window.innerWidth - 60, 900);
-  const maxH = window.innerHeight - pad - 140;
-  let s = Math.floor(Math.min(maxW / 256, maxH / 192));
-  if (s < 1) s = Math.min(maxW / 256, maxH / 192); // tiny screens: allow fractional
-  cvs.style.width  = (256 * s) + "px";
-  cvs.style.height = (192 * s) + "px";
-  document.getElementById("hud").style.width = cvs.style.width;
-  document.getElementById("touchUI").style.width = cvs.style.width;
+  const W = window.innerWidth, H = window.innerHeight;
+  const touch = window.matchMedia('(pointer:coarse)').matches;
+
+  if (!touch) {
+    /* ---- Desktop: original sizing ---- */
+    const pad  = 90;
+    const maxW = Math.min(W - 60, 900);
+    const maxH = H - pad - 140;
+    let s = Math.floor(Math.min(maxW / 256, maxH / 192));
+    if (s < 1) s = Math.min(maxW / 256, maxH / 192); // tiny screens: allow fractional
+    cvs.style.width  = (256 * s) + "px";
+    cvs.style.height = (192 * s) + "px";
+    document.getElementById("hud").style.width    = cvs.style.width;
+    document.getElementById("touchUI").style.width = cvs.style.width;
+    return;
+  }
+
+  /* ---- Mobile: fill available width; cap by height so landscape also fits ---- */
+  // hChrome: body(24) + frame border+padding(36) + screenWrap border(8) + 4 slack
+  // vChrome: same vertically + compact hud(~36) + touchUI margin-top(14)
+  const hChrome  = 72;
+  const vChrome  = 118;
+  const ctrlMinH = 80; // vertical space to reserve for touch controls
+  const sW = (W - hChrome) / 256;
+  const sH = (H - vChrome - ctrlMinH) / 192;
+  const s  = Math.max(0.5, Math.min(sW, sH));
+
+  const cW = Math.round(256 * s);
+  const cH = Math.round(192 * s);
+  cvs.style.width  = cW + "px";
+  cvs.style.height = cH + "px";
+  document.getElementById("hud").style.width    = cW + "px";
+  document.getElementById("touchUI").style.width = cW + "px";
+
+  // Scale controls: fit dpad + aBtn side-by-side in canvas width, fill remaining height
+  const remainH   = Math.max(ctrlMinH, H - vChrome - cH);
+  const ctrlScale = Math.max(0.75, Math.min(2.5, (cW - 20) / 182, remainH / 120));
+  scaleTouchControls(ctrlScale);
 }
+
+function scaleTouchControls(k) {
+  const dpadSize = Math.round(120 * k);
+  const btnSize  = Math.round(40  * k);
+  const aBtnSize = Math.round(62  * k);
+  const dOff     = Math.round((dpadSize - btnSize) / 2);
+
+  const dpad = document.querySelector('.dpad');
+  dpad.style.width  = dpadSize + 'px';
+  dpad.style.height = dpadSize + 'px';
+
+  const dUp    = document.getElementById('dUp');
+  const dDown  = document.getElementById('dDown');
+  const dLeft  = document.getElementById('dLeft');
+  const dRight = document.getElementById('dRight');
+  [dUp, dDown, dLeft, dRight].forEach(b => {
+    b.style.width      = btnSize + 'px';
+    b.style.height     = btnSize + 'px';
+    b.style.fontSize   = Math.round(12 * k) + 'px';
+    b.style.borderRadius = Math.round(8 * k) + 'px';
+  });
+  dUp.style.left    = dOff + 'px'; dUp.style.top    = '0px';
+  dDown.style.left  = dOff + 'px'; dDown.style.top  = (dpadSize - btnSize) + 'px';
+  dLeft.style.left  = '0px';       dLeft.style.top  = dOff + 'px';
+  dRight.style.left = (dpadSize - btnSize) + 'px'; dRight.style.top = dOff + 'px';
+
+  const aBtn = document.getElementById('aBtn');
+  aBtn.style.width      = aBtnSize + 'px';
+  aBtn.style.height     = aBtnSize + 'px';
+  aBtn.style.boxShadow  = `0 ${Math.round(4 * k)}px 0 #701512`;
+  aBtn.style.fontSize   = Math.round(14 * k) + 'px';
+}
+
 window.addEventListener("resize", fitScreen);
 fitScreen();
 
