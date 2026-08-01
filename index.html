@@ -289,6 +289,15 @@ const CONTENT = {
     ]
   },
 
+  car: {         // ← the car poster on the wall
+    title: "CAR GUY",
+    pages: [
+      "A framed print of a Porsche 911 hangs on the wall.",
+      "ASHWIN's a bit of a car nerd — flat-six engines, timeless design, that unmistakable silhouette.",
+      "THE GOAL\nOwn a Porsche 911 someday. Not a matter of if, just when.\nUntil then... the poster will do."
+    ]
+  },
+
   note: {        // ← the note on the center table
     title: "CONTACT",
     pages: [
@@ -436,6 +445,7 @@ const OBJECTS = [
   { key:"console",   tiles:[[9,1]] },
   { key:"window",    tiles:[[11,1],[12,1]], flat:true },  // mountain view
   { key:"poster",    tiles:[[13,1]], flat:true },         // flat = on the wall
+  { key:"car",       tiles:[[5,1]], flat:true },          // framed 911 print
   { key:"note",      tiles:[[7,6],[8,6]] },               // table
   { key:"plant",     tiles:[[14,2]] },
   { key:"bed",       tiles:[[1,8],[1,9]] },
@@ -818,6 +828,21 @@ function drawPoster(g, tx, ty){
   tilePx(g,"#d84840",tx,ty,4,5,8,2);
   tilePx(g,"#3870c0",tx,ty,5,9,6,2);
 }
+function drawCarPoster(g, tx, ty){       // framed print — Porsche 911 silhouette
+  tilePx(g,"#20242c",tx,ty,2,1,12,13);   // frame
+  tilePx(g,"#e4ecf5",tx,ty,3,2,10,11);   // wall/sky backing
+  tilePx(g,"#b6bac2",tx,ty,3,10,10,3);   // floor strip
+  tilePx(g,"#20242c",tx,ty,7,5,2,1);     // roof spoiler nub
+  tilePx(g,"#d84840",tx,ty,6,6,5,2);     // cabin/roof
+  tilePx(g,"#182058",tx,ty,7,7,2,1);     // window tint
+  tilePx(g,"#d84840",tx,ty,4,8,9,1);     // hood/body upper
+  tilePx(g,"#c8302a",tx,ty,4,9,9,2);     // body lower
+  tilePx(g,"#f8f8f8",tx,ty,12,9,1,1);    // headlight
+  tilePx(g,"#151820",tx,ty,5,11,2,2);    // wheel (front)
+  tilePx(g,"#7a828e",tx,ty,5,11,1,1);    // rim glint
+  tilePx(g,"#151820",tx,ty,10,11,2,2);   // wheel (rear)
+  tilePx(g,"#7a828e",tx,ty,10,11,1,1);   // rim glint
+}
 function drawTable(g, tx, ty){           // 2 wide, with note
   tilePx(g,"#20242c",tx,ty,1,3,30,12);
   tilePx(g,"#c89858",tx,ty,1,2,30,10);
@@ -999,6 +1024,7 @@ function bakeBackground(){
     else if (o.key==="console") drawConsole(bgx,x,y);
     else if (o.key==="window") drawMountainWindow(bgx,x,y);
     else if (o.key==="poster") drawPoster(bgx,x,y);
+    else if (o.key==="car") drawCarPoster(bgx,x,y);
     else if (o.key==="note") drawTable(bgx,x,y);
     else if (o.key==="plant") drawPlant(bgx,x,y);
     else if (o.key==="bed") drawBed(bgx,x,y);
