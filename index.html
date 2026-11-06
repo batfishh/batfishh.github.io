@@ -111,7 +111,7 @@
   #title .sub{ font-size:8px; color:#9fb4ff; line-height:1.8; }
   /* big START GAME button that stands in for the slider until tapped */
   #startBtn{
-    display:none; width:100%; height:64px;
+    display:none; width:85%; height:38px;
     font-family:inherit; font-size:14px; color:#fff; letter-spacing:1px;
     background:#c8403a; border:3px solid #8c1f1a; border-radius:10px;
     box-shadow:0 5px 0 #701512;
@@ -542,8 +542,8 @@ function scaleTouchControls(k) {
   SLIDER_KNOB_W = Math.round(60 * k);
   document.getElementById('sKnob').style.width = SLIDER_KNOB_W + 'px';
   const sb = document.getElementById('startBtn');
-  sb.style.height   = Math.round(Math.min(72 * k, dpadSize * 0.75)) + 'px';
-  sb.style.fontSize = Math.round(14 * Math.min(k, 1.6)) + 'px';
+  sb.style.height   = Math.round(Math.min(38 * k, dpadSize * 0.4)) + 'px';
+  sb.style.fontSize = Math.round(12 * Math.min(k, 1.4)) + 'px';
 }
 let SLIDER_KNOB_W = 60;
 
