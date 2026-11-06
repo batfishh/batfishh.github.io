@@ -96,19 +96,30 @@
   @keyframes bob{ 0%{transform:translateY(0)} 100%{transform:translateY(3px)} }
 
   /* ---------- Title overlay ---------- */
-  #title{
+  #title, #carSplash{
     position:absolute; inset:0; z-index:10;
     background:linear-gradient(180deg,#182448 0%, #23366b 55%, #101a35 100%);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; gap:18px; padding:20px;
   }
-  #title h1{
+  #title h1, #carSplash h1{
     font-size:clamp(14px, 3.2vw, 22px);
     color:#ffd83c;
     text-shadow:2px 2px 0 #a03020, 4px 4px 0 rgba(0,0,0,.45);
     line-height:1.6;
   }
-  #title .sub{ font-size:8px; color:#9fb4ff; line-height:1.8; }
+  #title .sub, #carSplash .sub{ font-size:8px; color:#9fb4ff; line-height:1.8; }
+  #carSplash{ display:none; }
+  #carSplash.open{ display:flex; }
+  #startBtn{
+    font-family:inherit; font-size:12px; color:#fff; letter-spacing:.5px;
+    background:#c8403a; border:3px solid #8c1f1a; border-radius:8px;
+    box-shadow:0 4px 0 #701512;
+    padding:12px 18px; cursor:pointer;
+    animation:pulse 1.1s steps(2) infinite;
+  }
+  #startBtn:active{ transform:translateY(3px); box-shadow:0 1px 0 #701512; }
+  @keyframes pulse{ 0%{ background:#c8403a } 100%{ background:#e05048 } }
   #pressStart{
     font-size:10px; color:#fff;
     animation:blink 1.1s steps(2) infinite;
@@ -251,6 +262,13 @@
       <h1 id="titleName">MY PORTFOLIO</h1>
       <div class="sub">A TINY ADVENTURE<br>WALK AROUND · TALK TO THINGS</div>
       <button id="pressStart">▶ PRESS ENTER</button>
+    </div>
+
+    <div id="carSplash">
+      <h1>HIGHWAY RUN</h1>
+      <div class="sub">WEAVE THROUGH TRAFFIC<br>HOW FAR CAN YOU GO?</div>
+      <button id="startBtn">▶ START GAME</button>
+      <div class="sub">OR TAP "MY PORTFOLIO" BELOW</div>
     </div>
 
     <div id="dialog">
@@ -1230,21 +1248,92 @@ const MELODY = [   // one entry per eighth note (32 = 4 bars), 0 = rest
 const BASSROOT = [48,43,45,41, 48,43,45,43]; // C G Am F | C G Am G (one per bar)
 const LOOP_EIGHTHS = MELODY.length;
 
+function playRoomStep(i, t){
+  const bar = Math.floor(i/8);
+  const m = MELODY[i];
+  if (m) tone(musicGain, "square", m, t, EIGHTH*0.9, 0.30);
+  if (i%2===0){
+    const r = BASSROOT[bar % BASSROOT.length];
+    tone(musicGain, "triangle", (i%8===4)? r+7 : r, t, EIGHTH*0.95, 0.5);
+    hat(t, (i%8===0)? 0.12 : 0.05);
+  }
+}
+
+/* ---- Car game track: fast, minor-key, driving ----
+   164 BPM in 16th notes · Am – F – C – G, 8 bars.
+   Bars 1-4: sawtooth lead riff. Bars 5-8: rising arpeggios + lead. */
+const CAR_BPM = 164, SIXTEENTH = 60/CAR_BPM/4;
+const CAR_ROOTS = [45, 41, 48, 43];               // A2 F2 C3 G2
+const CAR_CHORDS = [[69,72,76], [65,69,72], [72,76,79], [67,71,74]];
+const CAR_LEAD = [                                // one row per bar, 16 steps, 0 = rest
+  [76,0,76,0, 74,0,72,0, 74,0,76,0, 0,0,69,0],
+  [72,0,72,0, 74,0,76,0, 77,0,76,0, 74,0,72,0],
+  [79,0,79,0, 76,0,72,0, 76,0,79,0, 84,0,0,0],
+  [83,0,81,0, 79,0,74,0, 79,0,0,0, 81,0,83,0],
+  [81,0,0,81, 0,0,79,0, 76,0,0,0, 74,0,76,0],
+  [77,0,0,77, 0,0,76,0, 72,0,0,0, 76,0,77,0],
+  [79,0,0,79, 0,0,84,0, 83,0,0,0, 79,0,76,0],
+  [74,0,79,0, 83,0,86,0, 83,0,79,0, 81,81,83,83],
+];
+function kick(t){
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = "sine";
+  o.frequency.setValueAtTime(150, t);
+  o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
+  g.gain.setValueAtTime(0.9, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+  o.connect(g); g.connect(musicGain);
+  o.start(t); o.stop(t + 0.18);
+}
+function snare(t){
+  const s = AC.createBufferSource(); s.buffer = noiseBuf;
+  const g = AC.createGain(), bp = AC.createBiquadFilter();
+  bp.type = "bandpass"; bp.frequency.value = 1900; bp.Q.value = 0.8;
+  g.gain.setValueAtTime(0.5, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+  s.connect(bp); bp.connect(g); g.connect(musicGain);
+  s.start(t, Math.random()*0.3); s.stop(t + 0.14);
+  tone(musicGain, "triangle", 50, t, 0.06, 0.35);   // body
+}
+function playCarStep(i, t){
+  const bar = Math.floor(i/16), s = i % 16, ch = bar % 4;
+  const root = CAR_ROOTS[ch];
+  /* pumping octave bass on every 16th */
+  tone(musicGain, "sawtooth", (s%4===2) ? root+12 : root, t, SIXTEENTH*0.8, 0.22);
+  /* drums: four-on-the-floor kick, snare on 2 & 4, 8th-note hats */
+  if (s%4 === 0) kick(t);
+  if (s === 4 || s === 12) snare(t);
+  if (s%2 === 0) hat(t, (s%4===2) ? 0.10 : 0.05);
+  if (bar === 7 && s >= 12) snare(t);              // fill into the loop
+  /* lead */
+  const m = CAR_LEAD[bar][s];
+  if (m) tone(musicGain, "sawtooth", m, t, SIXTEENTH*1.6, 0.16);
+  /* second half: 16th-note arpeggios underneath */
+  if (bar >= 4){
+    const c = CAR_CHORDS[ch];
+    tone(musicGain, "square", c[s % 3] + (s >= 8 ? 12 : 0), t, SIXTEENTH*0.7, 0.07);
+  }
+}
+
+const TRACKS = {
+  room: { step: EIGHTH,    len: LOOP_EIGHTHS, play: playRoomStep },
+  car:  { step: SIXTEENTH, len: 128,          play: playCarStep  },
+};
+let curTrack = "room";
+function setTrack(name){
+  if (curTrack === name) return;
+  curTrack = name; musStep = 0;
+  if (AC) musNext = AC.currentTime + 0.08;          // clean restart on the new loop
+}
+
 let musNext = 0, musStep = 0;
 function scheduleMusic(){
   if (!AC || !musicOn) return;
+  const tr = TRACKS[curTrack];
   if (musNext < AC.currentTime) musNext = AC.currentTime + 0.02;
   while (musNext < AC.currentTime + 0.12){
-    const i = musStep % LOOP_EIGHTHS;
-    const bar = Math.floor(i/8);
-    const m = MELODY[i];
-    if (m) tone(musicGain, "square", m, musNext, EIGHTH*0.9, 0.30);
-    if (i%2===0){
-      const r = BASSROOT[bar % BASSROOT.length];
-      tone(musicGain, "triangle", (i%8===4)? r+7 : r, musNext, EIGHTH*0.95, 0.5);
-      hat(musNext, (i%8===0)? 0.12 : 0.05);
-    }
-    musNext += EIGHTH; musStep++;
+    tr.play(musStep % tr.len, musNext);
+    musNext += tr.step; musStep++;
   }
 }
 function startMusic(){
@@ -1408,11 +1497,8 @@ function startGame(){
    Top-down endless road, 6 lanes. Steer with the slider,
    overtake traffic, don't crash. Score = distance travelled.
    ============================================================ */
-/* The camera is zoomed in so cars read well on a phone: the world is drawn
-   at ZOOM× into the 256×192 canvas, so the visible world is VW×VH. */
-const ZOOM = 1.35, VW = 256 / ZOOM, VH = 192 / ZOOM;                 // ≈190 × 142
-const LANES = 6, LANE_W = 29, ROAD_W = LANES * LANE_W;               // 174
-const ROAD_L = Math.floor((VW - ROAD_W) / 2), ROAD_R = ROAD_L + ROAD_W;
+const ROAD_L = 20, ROAD_W = 216, LANES = 6, LANE_W = ROAD_W / LANES;   // 36px lanes
+const ROAD_R = ROAD_L + ROAD_W;
 
 function makeSprite(rows, pal){
   const w = Math.max(...rows.map(r => r.length)), h = rows.length;
@@ -1482,11 +1568,9 @@ const NPC_SPRITES = [
   makeSprite(TRUCK_ROWS, Object.assign({}, CAR_BASE, { C:"#e07830", B:"#8c94a8", b:"#6e768a" })),
 ];
 
-const PLAYER_Y = Math.round(VH - PLAYER_CAR.height - 6);
-/* speeds are in world px; scaled with the zoom so reaction time stays the same */
-const MIN_SPEED = 112, MAX_SPEED = 260;        // px/s of road scrolling
-const PX_PER_M  = 4;
-const KMH_PER_PX = 0.9;                        // 112 → ~100 km/h, 260 → ~235 km/h
+const PLAYER_Y = 192 - PLAYER_CAR.height - 8;
+const MIN_SPEED = 140, MAX_SPEED = 330;        // px/s of road scrolling
+const PX_PER_M  = 5;                           // a car (22px) ≈ 4.4m
 
 let carMode = false;
 let carSteer = 0.5;                            // slider value 0..1
@@ -1503,7 +1587,7 @@ function resetRace(){
   race.speed = MIN_SPEED; race.dist = 0; race.time = 0;
   race.npcs = []; race.nextSpawn = 60; race.overT = 0; race.lastMark = 0;
   /* each lane flows at its own pace, so cars in a lane never overlap */
-  race.laneSpeed = Array.from({length:LANES}, () => 32 + Math.random()*56);
+  race.laneSpeed = Array.from({length:LANES}, () => 40 + Math.random()*70);
   race.x = steerToX(carSteer);
 }
 
@@ -1513,7 +1597,7 @@ function spawnNPC(){
   /* need room in that lane at the top */
   for (const n of race.npcs) if (n.lane === lane && n.y < spr.height + 14) return false;
   /* never wall off the whole road: keep at least 2 lanes open near the top */
-  const busy = new Set(race.npcs.filter(n => n.y < 56).map(n => n.lane));
+  const busy = new Set(race.npcs.filter(n => n.y < 70).map(n => n.lane));
   busy.add(lane);
   if (busy.size > LANES - 2) return false;
   race.npcs.push({ lane, spr, y:-spr.height, x: ROAD_L + lane*LANE_W + (LANE_W - spr.width)/2 });
@@ -1549,7 +1633,7 @@ function updateCar(dt){
   actionQueued = false;
 
   race.time  += dt;
-  race.speed  = Math.min(MAX_SPEED, MIN_SPEED + race.time*3.3);
+  race.speed  = Math.min(MAX_SPEED, MIN_SPEED + race.time*4);
   race.dist  += race.speed*dt;
   race.scroll += race.speed*dt;
 
@@ -1559,11 +1643,11 @@ function updateCar(dt){
 
   /* traffic: spawn by distance, denser the further you go */
   if (race.dist >= race.nextSpawn){
-    const gap = Math.max(27, 64 - race.time*0.9);
+    const gap = Math.max(34, 80 - race.time*1.1);
     race.nextSpawn = race.dist + (spawnNPC() ? gap : 8);
   }
   for (const n of race.npcs) n.y += (race.speed - race.laneSpeed[n.lane]) * dt;
-  race.npcs = race.npcs.filter(n => n.y < VH + 8);
+  race.npcs = race.npcs.filter(n => n.y < 200);
 
   /* collision (hitboxes trimmed a bit so near-misses feel fair) */
   const pl = race.x + 2, pr = race.x + PLAYER_CAR.width - 2;
@@ -1588,48 +1672,47 @@ function txt(s, x, y, col, size, align){
 
 function renderCar(t){
   ctx.save();
-  ctx.setTransform(ZOOM, 0, 0, ZOOM, 0, 0);     // zoomed-in camera
   if (race.state === "over" && race.overT < 0.35){
-    const k = (0.35 - race.overT) * 10;
+    const k = (0.35 - race.overT) * 14;
     ctx.translate(Math.round((Math.random()-0.5)*k), Math.round((Math.random()-0.5)*k));
   }
   const sc = race.scroll;
-  const TOP = -8, H = VH + 16;                  // overdraw a bit for the crash shake
 
-  /* grass shoulders with scrolling stripes + small bushes */
-  px("#4f8a58", -8, TOP, ROAD_L + 8, H);
-  px("#4f8a58", ROAD_R, TOP, VW - ROAD_R + 8, H);
-  for (let y = (sc % 32) - 32; y < VH + 8; y += 32){
+  /* grass shoulders with scrolling stripes + bushes */
+  px("#4f8a58", -8, -8, ROAD_L + 8, 208);
+  px("#4f8a58", ROAD_R, -8, 256 - ROAD_R + 8, 208);
+  for (let y = (sc % 32) - 32; y < 200; y += 32){
     px("#5fa068", -8, y, ROAD_L + 8, 16);
-    px("#5fa068", ROAD_R, y, VW - ROAD_R + 8, 16);
+    px("#5fa068", ROAD_R, y, 264 - ROAD_R, 16);
   }
   for (let i = 0; i < 4; i++){
-    const y = ((sc + i*41) % (VH + 24)) - 12;
-    for (const bx of [1, ROAD_R + 2]){
-      px("#2f6a38", bx, y, 5, 5); px("#3f8a48", bx+1, y, 3, 3); px("#57b862", bx+1, y+1, 1, 1);
+    const y = ((sc*1 + i*53) % 220) - 20;
+    const lx = 4 + (i%2)*6, rx = ROAD_R + 4 + ((i+1)%2)*6;
+    for (const bx of [lx, rx]){
+      px("#2f6a38", bx, y, 8, 7); px("#3f8a48", bx+1, y, 6, 5); px("#57b862", bx+2, y+1, 2, 2);
     }
   }
 
   /* asphalt + edges */
-  px("#484c58", ROAD_L, TOP, ROAD_W, H);
-  for (let i = 0; i < 20; i++){                                          // asphalt speckles
-    const y = ((sc + i*37) % H) - 8;
+  px("#484c58", ROAD_L, -8, ROAD_W, 208);
+  for (let i = 0; i < 24; i++){                                          // asphalt speckles
+    const y = ((sc + i*37) % 208) - 8;
     px("#3e424d", ROAD_L + 8 + (i*71) % (ROAD_W - 16), Math.round(y), 2, 1);
   }
-  px("#c8c8d0", ROAD_L, TOP, 3, H);                                       // kerb
-  px("#c8c8d0", ROAD_R - 3, TOP, 3, H);
-  for (let y = (sc % 16) - 16; y < VH + 8; y += 16){
+  px("#c8c8d0", ROAD_L, -8, 3, 208);                                      // kerb
+  px("#c8c8d0", ROAD_R - 3, -8, 3, 208);
+  for (let y = (sc % 16) - 16; y < 200; y += 16){
     px("#d84840", ROAD_L, y, 3, 8);
     px("#d84840", ROAD_R - 3, y, 3, 8);
   }
-  px("#f0f0f0", ROAD_L + 5, TOP, 1, H);                                   // solid edge lines
-  px("#f0f0f0", ROAD_R - 6, TOP, 1, H);
+  px("#f0f0f0", ROAD_L + 5, -8, 1, 208);                                  // solid edge lines
+  px("#f0f0f0", ROAD_R - 6, -8, 1, 208);
 
   /* dashed lane markings — these sell the speed */
-  const DASH = 10, PERIOD = 20;
+  const DASH = 12, PERIOD = 24;
   for (let i = 1; i < LANES; i++){
     const lx = Math.round(ROAD_L + i*LANE_W) - 1;
-    for (let y = (sc % PERIOD) - PERIOD; y < VH + 8; y += PERIOD) px("#e8e8e0", lx, Math.round(y), 2, DASH);
+    for (let y = (sc % PERIOD) - PERIOD; y < 200; y += PERIOD) px("#e8e8e0", lx, Math.round(y), 2, DASH);
   }
 
   /* traffic + player */
@@ -1640,27 +1723,26 @@ function renderCar(t){
   const pxl = Math.round(race.x);
   px("rgba(0,0,0,.25)", pxl+2, PLAYER_Y+3, PLAYER_CAR.width, PLAYER_CAR.height);
   ctx.drawImage(PLAYER_CAR, pxl, PLAYER_Y);
-  if (race.state === "running" && race.speed > 170 && (t*20|0)%2)       // exhaust flicker
+  if (race.state === "running" && race.speed > 200 && (t*20|0)%2)       // exhaust flicker
     px("#ffd83c", pxl+5, PLAYER_Y + PLAYER_CAR.height, 4, 2);
   ctx.restore();
 
-  /* HUD (drawn at canvas scale, larger type for phones) */
+  /* HUD */
   const meters = Math.floor(race.dist / PX_PER_M);
-  px("rgba(16,20,31,.75)", 0, 0, 256, 20);
-  txt(meters + " M", 6, 5, "#ffd83c", 10);
-  txt(Math.round(race.speed * KMH_PER_PX) + " KM/H", 250, 6, "#cfd6ff", 8, "right");
+  px("rgba(16,20,31,.75)", 0, 0, 256, 16);
+  txt(meters + " M", 6, 4, "#ffd83c");
+  txt(Math.round(race.speed * 0.72) + " KM/H", 250, 4, "#cfd6ff", 8, "right");
 
   if (race.state === "ready"){
-    px("rgba(16,20,31,.7)", 14, 46, 228, 96);
-    txt("HIGHWAY RUN", 128, 56, "#ffd83c", 14, "center");
-    txt("OVERTAKE. DON'T CRASH.", 128, 80, "#cfd6ff", 8, "center");
-    if ((t*2|0)%2 === 0) txt("SLIDE TO DRIVE", 128, 98, "#ffffff", 10, "center");
-    txt("MY PORTFOLIO IS ONE TAP BELOW", 128, 122, "#8a93b8", 6, "center");
+    px("rgba(16,20,31,.6)", 28, 58, 200, 62);
+    txt("HIGHWAY RUN", 128, 68, "#ffd83c", 10, "center");
+    txt("OVERTAKE. DON'T CRASH.", 128, 88, "#cfd6ff", 6, "center");
+    if ((t*2|0)%2 === 0) txt("SLIDE TO DRIVE", 128, 104, "#ffffff", 8, "center");
   } else if (race.state === "over"){
-    px("rgba(16,20,31,.75)", 20, 50, 216, 84);
-    txt("CRASH!", 128, 60, "#e04038", 16, "center");
-    txt(meters + " M", 128, 86, "#ffd83c", 10, "center");
-    if (race.overT > 0.6 && !msgOpen && (t*2|0)%2 === 0) txt("TAP TO RETRY", 128, 110, "#cfd6ff", 8, "center");
+    px("rgba(16,20,31,.75)", 28, 56, 200, 70);
+    txt("CRASH!", 128, 64, "#e04038", 12, "center");
+    txt("DISTANCE  " + meters + " M", 128, 86, "#ffd83c", 7, "center");
+    if (race.overT > 0.6 && !msgOpen && (t*2|0)%2 === 0) txt("TAP TO RETRY", 128, 106, "#cfd6ff", 7, "center");
   }
 }
 
@@ -1697,6 +1779,7 @@ function steerFromPointer(clientX){
 }
 sliderEl.addEventListener("pointerdown", e => {
   e.preventDefault();
+  if (splashOpen) return;                       // the START GAME tap comes first (it unlocks audio)
   sliderEl.setPointerCapture(e.pointerId);
   sliderEl.classList.add("held");
   const kr = knobEl.getBoundingClientRect();
@@ -1709,12 +1792,26 @@ sliderEl.addEventListener("pointermove", e => { if (grabOff !== null) steerFromP
 const releaseSlider = () => { grabOff = null; sliderEl.classList.remove("held"); };
 sliderEl.addEventListener("pointerup", releaseSlider);
 sliderEl.addEventListener("pointercancel", releaseSlider);
-document.getElementById("screenWrap").addEventListener("pointerdown", () => { if (carMode) actionQueued = true; });
+document.getElementById("screenWrap").addEventListener("pointerdown", () => { if (carMode && !splashOpen) actionQueued = true; });
+
+/* ---- START GAME splash (mobile boot): one deliberate tap so audio can start ---- */
+let splashOpen = false;
+const splashEl = document.getElementById("carSplash");
+function showSplash(on){
+  splashOpen = on;
+  splashEl.classList.toggle("open", on);
+}
+document.getElementById("startBtn").addEventListener("click", () => {
+  unlockAudio();                                // click is a full user gesture → audio allowed
+  showSplash(false);
+  sfx.confirm();
+});
 
 /* ---- switching between the room and the car game ---- */
 const carBtn = document.getElementById("carBtn");
 function setCarMode(on, atBoot){
   carMode = on;
+  setTrack(on ? "car" : "room");
   document.body.classList.toggle("car-mode", on);
   carBtn.textContent = on ? "▶ MY PORTFOLIO" : "▶ PLAY CAR GAME";
   held.up = held.down = held.left = held.right = false;
@@ -1729,13 +1826,14 @@ function setCarMode(on, atBoot){
     carSteer = 0.5; resetRace(); layoutSlider();
     sfx.confirm();
   } else {
+    showSplash(false);
     sfx.close();
     if (!started){ started = true; setTimeout(()=> openDialog(CONTENT.intro), 350); }
   }
 }
 carBtn.addEventListener("click", () => setCarMode(!carMode));
 /* phones land straight on the car game; desktop keeps the portfolio title screen */
-if (window.matchMedia("(pointer:coarse)").matches) setCarMode(true, true);
+if (window.matchMedia("(pointer:coarse)").matches){ setCarMode(true, true); showSplash(true); }
 
 /* ---- crash pop-up: send Ashwin your score + a message (via Web3Forms) ---- */
 const WEB3FORMS_KEY = "28d2c4b8-fb23-40ca-ae5f-65d6467bb6f6";   // public by design; tied to the inbox
