@@ -1165,6 +1165,39 @@ function initAudio(){
   startMusic();
 }
 
+/* ---- Mobile audio unlock ----
+   Chrome (and Android in-app browsers like Instagram's) only let audio start
+   from a *completed* gesture: touchend / pointerup / click / keydown.
+   Our controls react on touchstart (and cancel the click), so the
+   AudioContext was created but stayed suspended forever. Listen for a real
+   gesture anywhere on the page and resume the context there. */
+if (navigator.audioSession) {
+  try { navigator.audioSession.type = "playback"; } catch(e){}   // iOS: play even with the silent switch on
+}
+function unlockAudio(){
+  initAudio();
+  if (!AC) return;
+  if (AC.state !== "running") AC.resume().catch(()=>{});
+  /* iOS needs something actually played inside the gesture */
+  try {
+    const b = AC.createBuffer(1, 1, AC.sampleRate);
+    const s = AC.createBufferSource(); s.buffer = b; s.connect(AC.destination); s.start(0);
+  } catch(e){}
+  if (AC.state === "running") stopUnlockListeners();
+}
+const UNLOCK_EVENTS = ["touchend", "pointerup", "click", "keydown"];
+function stopUnlockListeners(){
+  for (const ev of UNLOCK_EVENTS) window.removeEventListener(ev, unlockAudio, true);
+}
+for (const ev of UNLOCK_EVENTS) window.addEventListener(ev, unlockAudio, true);
+/* browsers suspend audio when the tab/app is backgrounded; re-arm on return */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && AC && AC.state !== "running"){
+    AC.resume().catch(()=>{});
+    for (const ev of UNLOCK_EVENTS) window.addEventListener(ev, unlockAudio, true);
+  }
+});
+
 const f = m => 440 * Math.pow(2, (m-69)/12);
 
 function tone(dest, type, midi, t, dur, vol, slideTo){
