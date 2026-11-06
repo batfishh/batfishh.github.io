@@ -195,6 +195,50 @@
   #sKnob i{ display:block; width:3px; height:45%; background:#8c1f1a; }
   #slider.held #sKnob{ background:#d85048; }
   #sLabel{ font-size:7px; color:#8a93b8; }
+
+  /* ---------- "Send me a message" pop-up after a crash ---------- */
+  #msgModal{
+    position:fixed; inset:0; z-index:50;
+    display:none; align-items:flex-start; justify-content:center;
+    padding:12vh 16px 16px;
+    background:rgba(8,10,20,.72);
+  }
+  #msgModal.open{ display:flex; }
+  #msgBox{
+    position:relative; width:100%; max-width:380px;
+    background:var(--box-bg);
+    border:3px solid var(--box-border);
+    border-radius:6px;
+    box-shadow:0 0 0 3px #f8f8f0, 0 0 0 6px #303848, 0 4px 0 6px rgba(0,0,0,.35);
+    padding:14px; color:var(--ink);
+  }
+  #msgTitle{
+    display:inline-block; font-size:8px; letter-spacing:.5px; color:#fff;
+    background:var(--accent); border:2px solid #8c1f1a; border-radius:3px;
+    padding:4px 7px 3px; margin-bottom:10px;
+  }
+  #msgText{ font-size:9px; line-height:1.9; margin-bottom:10px; }
+  #msgBox input, #msgBox textarea{
+    display:block; width:100%; margin-bottom:8px;
+    font-family:inherit; font-size:10px; line-height:1.7; color:var(--ink);
+    background:#fff; border:2px solid var(--box-border); border-radius:4px;
+    padding:8px; resize:none; outline:none;
+  }
+  #msgBox input:focus, #msgBox textarea:focus{ border-color:var(--accent); }
+  #msgBox ::placeholder{ color:#9aa0b0; }
+  #msgBox .hp{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
+  #msgStatus{ font-size:8px; line-height:1.8; min-height:15px; margin-bottom:8px; color:#5a6478; }
+  #msgStatus.err{ color:var(--accent); }
+  #msgStatus.ok{ color:#2f8a3a; }
+  .msgBtns{ display:flex; gap:10px; justify-content:flex-end; }
+  .mBtn{
+    font-family:inherit; font-size:9px; cursor:pointer;
+    border-radius:6px; padding:9px 12px;
+  }
+  .mBtn:active{ transform:translateY(2px); }
+  .mBtn:disabled{ opacity:.55; cursor:default; transform:none; }
+  #msgSkip{ color:var(--ink); background:#e4e4dc; border:2px solid var(--box-border); }
+  #msgSend{ color:#fff; background:#c8403a; border:2px solid #8c1f1a; box-shadow:0 3px 0 #701512; }
 </style>
 </head>
 <body>
@@ -241,6 +285,21 @@
   </div>
 </div>
 <div id="madeWith">HANDCRAFTED PIXELS · NO ENGINES · RUNS ANYWHERE</div>
+
+<div id="msgModal" role="dialog" aria-modal="true" aria-labelledby="msgTitle">
+  <form id="msgBox" autocomplete="off">
+    <span id="msgTitle">CRASH! 0 M</span>
+    <div id="msgText">Nice driving! Send me your score, and say hi, leave feedback, or tell me anything. I read every one.</div>
+    <input id="msgName" type="text" maxlength="40" placeholder="Your name (optional)">
+    <textarea id="msgBody" rows="3" maxlength="500" placeholder="Your message (optional)"></textarea>
+    <input class="hp" type="checkbox" id="msgBot" tabindex="-1" aria-hidden="true">
+    <div id="msgStatus"></div>
+    <div class="msgBtns">
+      <button type="button" class="mBtn" id="msgSkip">SKIP</button>
+      <button type="submit" class="mBtn" id="msgSend">SEND ▶</button>
+    </div>
+  </form>
+</div>
 
 <script>
 "use strict";
@@ -1206,6 +1265,7 @@ const KEYMAP = {
   w:"up", s:"down", a:"left", d:"right", W:"up", S:"down", A:"left", D:"right",
 };
 window.addEventListener("keydown", e=>{
+  if (msgOpen){ if (e.key === "Escape") closeMsg(); return; }   // let the player type freely
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) e.preventDefault();
   if (titleShowing && (e.key==="Enter" || e.key===" " || e.key==="z" || e.key==="Z")) { startGame(); return; }
   if (KEYMAP[e.key]) held[KEYMAP[e.key]] = true;
@@ -1395,9 +1455,8 @@ let carSteer = 0.5;                            // slider value 0..1
 const race = {
   state:"ready",                               // ready · running · over
   x:0, speed:MIN_SPEED, dist:0, time:0, scroll:0,
-  npcs:[], laneSpeed:[], nextSpawn:0, overT:0, lastMark:0, best:0,
+  npcs:[], laneSpeed:[], nextSpawn:0, overT:0, lastMark:0,
 };
-try { race.best = +localStorage.getItem("hwyBest") || 0; } catch(e){}
 
 function steerToX(v){ return ROAD_L + 3 + v * (ROAD_W - 6 - PLAYER_CAR.width); }
 
@@ -1425,9 +1484,10 @@ function spawnNPC(){
 
 function crash(){
   race.state = "over"; race.overT = 0;
-  const m = Math.floor(race.dist / PX_PER_M);
-  if (m > race.best){ race.best = m; try { localStorage.setItem("hwyBest", m); } catch(e){} }
   sfx.crash();
+  /* let the crash shake play out, then ask for a message */
+  const m = Math.floor(race.dist / PX_PER_M);
+  setTimeout(() => { if (carMode && race.state === "over") openMsg(m); }, 800);
 }
 
 function updateCar(dt){
@@ -1437,7 +1497,7 @@ function updateCar(dt){
 
   if (race.state === "over"){
     race.overT += dt;
-    if (actionQueued && race.overT > 0.6) resetRace();
+    if (actionQueued && race.overT > 0.6 && !msgOpen) resetRace();
     actionQueued = false;
     return;
   }
@@ -1557,11 +1617,10 @@ function renderCar(t){
     txt("OVERTAKE. DON'T CRASH.", 128, 88, "#cfd6ff", 6, "center");
     if ((t*2|0)%2 === 0) txt("SLIDE TO DRIVE", 128, 104, "#ffffff", 8, "center");
   } else if (race.state === "over"){
-    px("rgba(16,20,31,.75)", 28, 50, 200, 82);
-    txt("CRASH!", 128, 58, "#e04038", 12, "center");
-    txt("DISTANCE  " + meters + " M", 128, 80, "#ffffff", 7, "center");
-    txt("BEST      " + race.best + " M", 128, 94, "#ffd83c", 7, "center");
-    if (race.overT > 0.6 && (t*2|0)%2 === 0) txt("TAP TO RETRY", 128, 114, "#cfd6ff", 7, "center");
+    px("rgba(16,20,31,.75)", 28, 56, 200, 70);
+    txt("CRASH!", 128, 64, "#e04038", 12, "center");
+    txt("DISTANCE  " + meters + " M", 128, 86, "#ffd83c", 7, "center");
+    if (race.overT > 0.6 && !msgOpen && (t*2|0)%2 === 0) txt("TAP TO RETRY", 128, 106, "#cfd6ff", 7, "center");
   }
 }
 
@@ -1633,6 +1692,79 @@ function setCarMode(on){
   }
 }
 carBtn.addEventListener("click", () => setCarMode(!carMode));
+
+/* ---- crash pop-up: send Ashwin your score + a message (via Web3Forms) ---- */
+const WEB3FORMS_KEY = "28d2c4b8-fb23-40ca-ae5f-65d6467bb6f6";   // public by design; tied to the inbox
+let msgOpen = false, msgScore = 0, msgSending = false;
+const msgModal  = document.getElementById("msgModal");
+const msgForm   = document.getElementById("msgBox");
+const msgStatus = document.getElementById("msgStatus");
+const msgSend   = document.getElementById("msgSend");
+const msgSkip   = document.getElementById("msgSkip");
+
+function setMsgStatus(text, kind){
+  msgStatus.textContent = text;
+  msgStatus.className = kind || "";
+}
+function openMsg(meters){
+  msgScore = meters; msgOpen = true; msgSending = false;
+  document.getElementById("msgTitle").textContent = "CRASH! " + meters.toLocaleString("en-US") + " M";
+  document.getElementById("msgBody").value = "";
+  document.getElementById("msgBot").checked = false;
+  msgSend.disabled = msgSkip.disabled = false;
+  msgSend.textContent = "SEND ▶";
+  setMsgStatus("");
+  msgModal.classList.add("open");
+  sfx.confirm();
+}
+function closeMsg(){
+  if (msgSending) return;
+  msgOpen = false;
+  msgModal.classList.remove("open");
+  if (document.activeElement) document.activeElement.blur();
+  sfx.close();
+}
+msgSkip.addEventListener("click", closeMsg);
+msgModal.addEventListener("pointerdown", e => { if (e.target === msgModal) closeMsg(); });   // tap outside = skip
+
+msgForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  if (msgSending) return;
+  const name    = document.getElementById("msgName").value.trim();
+  const message = document.getElementById("msgBody").value.trim();
+  msgSending = true;
+  msgSend.disabled = msgSkip.disabled = true;
+  msgSend.textContent = "SENDING…";
+  setMsgStatus("");
+  try {
+    const res = await fetch("https://api.web3forms.com/submit", {
+      method: "POST",
+      headers: { "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({
+        access_key: WEB3FORMS_KEY,
+        subject:    `Highway Run: ${msgScore} m${name ? " from " + name : ""}`,
+        from_name:  "Portfolio · Highway Run",
+        name:       name || "Anonymous driver",
+        distance:   msgScore + " m",
+        message:    message || "(no message, just the score)",
+        botcheck:   document.getElementById("msgBot").checked,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) throw new Error(data.message || ("HTTP " + res.status));
+    msgSending = false;
+    msgSend.textContent = "SENT ✓";
+    setMsgStatus("SENT! THANKS FOR DRIVING BY.", "ok");
+    sfx.confirm();
+    setTimeout(() => { if (msgOpen) closeMsg(); }, 1400);
+  } catch (err){
+    msgSending = false;
+    msgSend.disabled = msgSkip.disabled = false;
+    msgSend.textContent = "RETRY ▶";
+    setMsgStatus("COULDN'T SEND. CHECK YOUR CONNECTION AND TRY AGAIN.", "err");
+    sfx.bump();
+  }
+});
 
 sfx.crash = function(){
   if (!AC) return;
