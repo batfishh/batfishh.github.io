@@ -159,6 +159,42 @@
   #aBtn:active{ transform:translateY(2px); box-shadow:0 2px 0 #701512; }
 
   #madeWith{ margin-top:10px; font-size:6px; color:#4a5378; }
+
+  /* ---------- Car mini-game (mobile only) ---------- */
+  #carBtn{
+    display:none;
+    font-family:inherit; font-size:8px; color:#fff; letter-spacing:.5px;
+    background:#c8403a; border:2px solid #8c1f1a; border-radius:6px;
+    box-shadow:0 3px 0 #701512;
+    padding:5px 8px; cursor:pointer; white-space:nowrap;
+  }
+  #carBtn:active{ transform:translateY(2px); box-shadow:0 1px 0 #701512; }
+  @media (pointer:coarse){
+    #carBtn{ display:block; font-size:7px; }
+  }
+  #carUI{
+    display:none; width:100%; margin-top:14px;
+    flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    user-select:none; -webkit-user-select:none;
+  }
+  body.car-mode #touchUI{ display:none; }
+  body.car-mode #carUI{ display:flex; }
+  #slider{ position:relative; width:100%; height:52px; touch-action:none; cursor:pointer; }
+  #sTrack{
+    position:absolute; left:0; right:0; top:50%; height:22px; transform:translateY(-50%);
+    background:#1c2136; border:2px solid #565f96; border-radius:8px;
+    box-shadow:inset 0 3px 0 rgba(0,0,0,.35);
+  }
+  .sTick{ position:absolute; top:50%; width:2px; height:40%; transform:translate(-1px,-50%); background:#565f96; }
+  #sKnob{
+    position:absolute; top:0; width:60px; height:100%;
+    background:#c8403a; border:3px solid #8c1f1a; border-radius:8px;
+    box-shadow:0 4px 0 #701512;
+    display:flex; align-items:center; justify-content:center; gap:4px;
+  }
+  #sKnob i{ display:block; width:3px; height:45%; background:#8c1f1a; }
+  #slider.held #sKnob{ background:#d85048; }
+  #sLabel{ font-size:7px; color:#8a93b8; }
 </style>
 </head>
 <body>
@@ -183,6 +219,7 @@
   <div id="hud">
     <div id="hint">ARROWS / WASD — MOVE&nbsp;&nbsp;·&nbsp;&nbsp;Z / ENTER / SPACE — INTERACT&nbsp;&nbsp;·&nbsp;&nbsp;M — MUSIC</div>
     <button id="muteBtn">♪ MUSIC: ON</button>
+    <button id="carBtn">▶ PLAY CAR GAME</button>
   </div>
 
   <div id="touchUI">
@@ -193,6 +230,14 @@
       <button class="dbtn" id="dDown">▼</button>
     </div>
     <button id="aBtn">A</button>
+  </div>
+
+  <div id="carUI">
+    <div id="slider">
+      <div id="sTrack"></div>
+      <div id="sKnob"><i></i><i></i><i></i></div>
+    </div>
+    <div id="sLabel">◀ SLIDE TO STEER ▶</div>
   </div>
 </div>
 <div id="madeWith">HANDCRAFTED PIXELS · NO ENGINES · RUNS ANYWHERE</div>
@@ -377,6 +422,7 @@ function fitScreen(){
   cvs.style.height = cH + "px";
   document.getElementById("hud").style.width    = cW + "px";
   document.getElementById("touchUI").style.width = cW + "px";
+  document.getElementById("carUI").style.width   = cW + "px";
 
   // Scale controls: fit dpad + aBtn side-by-side in canvas width, fill remaining height
   const remainH   = Math.max(ctrlMinH, H - vChrome - cH);
@@ -414,7 +460,15 @@ function scaleTouchControls(k) {
   aBtn.style.height     = aBtnSize + 'px';
   aBtn.style.boxShadow  = `0 ${Math.round(4 * k)}px 0 #701512`;
   aBtn.style.fontSize   = Math.round(14 * k) + 'px';
+
+  /* car-game slider: same footprint as the dpad so the layout doesn't jump */
+  document.getElementById('carUI').style.height = dpadSize + 'px';
+  document.getElementById('slider').style.height = Math.round(Math.min(52 * k, dpadSize * 0.6)) + 'px';
+  document.getElementById('sTrack').style.height = Math.round(22 * k) + 'px';
+  SLIDER_KNOB_W = Math.round(60 * k);
+  document.getElementById('sKnob').style.width = SLIDER_KNOB_W + 'px';
 }
+let SLIDER_KNOB_W = 60;
 
 window.addEventListener("resize", fitScreen);
 fitScreen();
@@ -1256,13 +1310,351 @@ function startGame(){
   if (!started){ started = true; setTimeout(()=> openDialog(CONTENT.intro), 350); }
 }
 
+/* ============================================================
+   MINI-GAME: HIGHWAY RUN (mobile)
+   Top-down endless road, 6 lanes. Steer with the slider,
+   overtake traffic, don't crash. Score = distance travelled.
+   ============================================================ */
+const ROAD_L = 20, ROAD_W = 216, LANES = 6, LANE_W = ROAD_W / LANES;   // 36px lanes
+const ROAD_R = ROAD_L + ROAD_W;
+
+function makeSprite(rows, pal){
+  const w = Math.max(...rows.map(r => r.length)), h = rows.length;
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const g = c.getContext("2d");
+  for (let y=0; y<h; y++)
+    for (let x=0; x<w; x++){
+      const ch = rows[y][x];
+      if (ch && ch !== "." && pal[ch]){ g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); }
+    }
+  return c;
+}
+
+/* Top view, nose pointing up. Y headlights · G glass · T taillights · W shine */
+const CAR_ROWS = [
+  "....KKKKKK....",
+  "..KKRRRRRRKK..",
+  ".KYRRRRRRRRYK.",
+  ".KRRRRRRRRRRK.",
+  "KKRRWRRRRRRRKK",
+  "KKRRWRRRRRRRKK",
+  "KKRRRRRRRRRRKK",
+  ".KRRRRRRRRRRK.",
+  ".KRGGGGGGGGRK.",
+  ".KRGgGGGGGGRK.",
+  ".KRRRRRRRRRRK.",
+  ".KRRRWRRRRRRK.",
+  ".KRRRRRRRRRRK.",
+  ".KRRRRRRRRRRK.",
+  ".KRGGGGGGGGRK.",
+  ".KRRRRRRRRRRK.",
+  "KKRRRRRRRRRRKK",
+  "KKRRRRRRRRRRKK",
+  "KKRRRRRRRRRRKK",
+  ".KrrrrrrrrrrK.",
+  ".KTTrrrrrrTTK.",
+  "..KKKKKKKKKK..",
+];
+const TRUCK_ROWS = [
+  "...KKKKKKKK...",
+  "..KYCCCCCCYK..",
+  "..KCCCCCCCCK..",
+  "..KGGGGGGGGK..",
+  "KKKCCCCCCCCKKK",
+  "KKKCCCCCCCCKKK",
+  "..KKKKKKKKKK..",
+  ...Array.from({length:14}, (_,i) => i%4===1 ? ".KBbBBBBBBbBK." : ".KBBBBBBBBBBK."),
+  "KKBBBBBBBBBBKK",
+  "KKBBBBBBBBBBKK",
+  ".KBBBBBBBBBBK.",
+  "KKBBBBBBBBBBKK",
+  "KKBBBBBBBBBBKK",
+  ".KTBBBBBBBBTK.",
+  ".KKKKKKKKKKKK.",
+];
+const CAR_BASE = { K:"#20242c", Y:"#fff0a0", T:"#ff5040", G:"#4a6aa8", g:"#9cc0ff" };
+const carPal = (main, shade, shine) => Object.assign({}, CAR_BASE, { R:main, r:shade, W:shine });
+const PLAYER_CAR = makeSprite(CAR_ROWS, carPal("#d84840", "#98282c", "#f8a8a0"));   // the dream 911, in red
+const NPC_SPRITES = [
+  makeSprite(CAR_ROWS, carPal("#3870c0", "#28508c", "#88b0f0")),
+  makeSprite(CAR_ROWS, carPal("#f0c020", "#b8880c", "#fce27a")),
+  makeSprite(CAR_ROWS, carPal("#48a058", "#2f7a3a", "#90d898")),
+  makeSprite(CAR_ROWS, carPal("#e8e8f0", "#a8a8b8", "#ffffff")),
+  makeSprite(CAR_ROWS, carPal("#9068c8", "#684898", "#c0a8f0")),
+  makeSprite(TRUCK_ROWS, Object.assign({}, CAR_BASE, { C:"#38a098", B:"#d8d0c0", b:"#b0a898" })),
+  makeSprite(TRUCK_ROWS, Object.assign({}, CAR_BASE, { C:"#e07830", B:"#8c94a8", b:"#6e768a" })),
+];
+
+const PLAYER_Y = 192 - PLAYER_CAR.height - 8;
+const MIN_SPEED = 140, MAX_SPEED = 330;        // px/s of road scrolling
+const PX_PER_M  = 5;                           // a car (22px) ≈ 4.4m
+
+let carMode = false;
+let carSteer = 0.5;                            // slider value 0..1
+const race = {
+  state:"ready",                               // ready · running · over
+  x:0, speed:MIN_SPEED, dist:0, time:0, scroll:0,
+  npcs:[], laneSpeed:[], nextSpawn:0, overT:0, lastMark:0, best:0,
+};
+try { race.best = +localStorage.getItem("hwyBest") || 0; } catch(e){}
+
+function steerToX(v){ return ROAD_L + 3 + v * (ROAD_W - 6 - PLAYER_CAR.width); }
+
+function resetRace(){
+  race.state = "ready";
+  race.speed = MIN_SPEED; race.dist = 0; race.time = 0;
+  race.npcs = []; race.nextSpawn = 60; race.overT = 0; race.lastMark = 0;
+  /* each lane flows at its own pace, so cars in a lane never overlap */
+  race.laneSpeed = Array.from({length:LANES}, () => 40 + Math.random()*70);
+  race.x = steerToX(carSteer);
+}
+
+function spawnNPC(){
+  const lane = Math.floor(Math.random()*LANES);
+  const spr  = NPC_SPRITES[Math.random() < 0.18 ? 5 + (Math.random()*2|0) : (Math.random()*5|0)];
+  /* need room in that lane at the top */
+  for (const n of race.npcs) if (n.lane === lane && n.y < spr.height + 14) return false;
+  /* never wall off the whole road: keep at least 2 lanes open near the top */
+  const busy = new Set(race.npcs.filter(n => n.y < 70).map(n => n.lane));
+  busy.add(lane);
+  if (busy.size > LANES - 2) return false;
+  race.npcs.push({ lane, spr, y:-spr.height, x: ROAD_L + lane*LANE_W + (LANE_W - spr.width)/2 });
+  return true;
+}
+
+function crash(){
+  race.state = "over"; race.overT = 0;
+  const m = Math.floor(race.dist / PX_PER_M);
+  if (m > race.best){ race.best = m; try { localStorage.setItem("hwyBest", m); } catch(e){} }
+  sfx.crash();
+}
+
+function updateCar(dt){
+  /* keyboard steering too (handy on desktop) */
+  const kx = (held.right?1:0) - (held.left?1:0);
+  if (kx){ carSteer = Math.max(0, Math.min(1, carSteer + kx*1.4*dt)); layoutSlider(); }
+
+  if (race.state === "over"){
+    race.overT += dt;
+    if (actionQueued && race.overT > 0.6) resetRace();
+    actionQueued = false;
+    return;
+  }
+  if (race.state === "ready"){
+    race.x = steerToX(carSteer);
+    race.scroll += 30*dt;
+    if (actionQueued || kx) race.state = "running";
+    actionQueued = false;
+    return;
+  }
+  actionQueued = false;
+
+  race.time  += dt;
+  race.speed  = Math.min(MAX_SPEED, MIN_SPEED + race.time*4);
+  race.dist  += race.speed*dt;
+  race.scroll += race.speed*dt;
+
+  /* car glides toward the slider position */
+  const tx = steerToX(carSteer);
+  race.x += (tx - race.x) * Math.min(1, dt*14);
+
+  /* traffic: spawn by distance, denser the further you go */
+  if (race.dist >= race.nextSpawn){
+    const gap = Math.max(34, 80 - race.time*1.1);
+    race.nextSpawn = race.dist + (spawnNPC() ? gap : 8);
+  }
+  for (const n of race.npcs) n.y += (race.speed - race.laneSpeed[n.lane]) * dt;
+  race.npcs = race.npcs.filter(n => n.y < 200);
+
+  /* collision (hitboxes trimmed a bit so near-misses feel fair) */
+  const pl = race.x + 2, pr = race.x + PLAYER_CAR.width - 2;
+  const pt = PLAYER_Y + 2, pb = PLAYER_Y + PLAYER_CAR.height - 2;
+  for (const n of race.npcs){
+    if (pr > n.x + 2 && pl < n.x + n.spr.width - 2 && pb > n.y + 2 && pt < n.y + n.spr.height - 2){
+      crash(); return;
+    }
+  }
+
+  /* a little chime every 100m */
+  const m = Math.floor(race.dist / PX_PER_M / 100);
+  if (m > race.lastMark){ race.lastMark = m; sfx.confirm(); }
+}
+
+function txt(s, x, y, col, size, align){
+  ctx.font = (size||8) + "px 'Press Start 2P', monospace";
+  ctx.textAlign = align || "left"; ctx.textBaseline = "top";
+  ctx.fillStyle = "#20242c"; ctx.fillText(s, x+1, y+1);
+  ctx.fillStyle = col; ctx.fillText(s, x, y);
+}
+
+function renderCar(t){
+  ctx.save();
+  if (race.state === "over" && race.overT < 0.35){
+    const k = (0.35 - race.overT) * 14;
+    ctx.translate(Math.round((Math.random()-0.5)*k), Math.round((Math.random()-0.5)*k));
+  }
+  const sc = race.scroll;
+
+  /* grass shoulders with scrolling stripes + bushes */
+  px("#4f8a58", -8, -8, ROAD_L + 8, 208);
+  px("#4f8a58", ROAD_R, -8, 256 - ROAD_R + 8, 208);
+  for (let y = (sc % 32) - 32; y < 200; y += 32){
+    px("#5fa068", -8, y, ROAD_L + 8, 16);
+    px("#5fa068", ROAD_R, y, 264 - ROAD_R, 16);
+  }
+  for (let i = 0; i < 4; i++){
+    const y = ((sc*1 + i*53) % 220) - 20;
+    const lx = 4 + (i%2)*6, rx = ROAD_R + 4 + ((i+1)%2)*6;
+    for (const bx of [lx, rx]){
+      px("#2f6a38", bx, y, 8, 7); px("#3f8a48", bx+1, y, 6, 5); px("#57b862", bx+2, y+1, 2, 2);
+    }
+  }
+
+  /* asphalt + edges */
+  px("#484c58", ROAD_L, -8, ROAD_W, 208);
+  for (let i = 0; i < 24; i++){                                          // asphalt speckles
+    const y = ((sc + i*37) % 208) - 8;
+    px("#3e424d", ROAD_L + 8 + (i*71) % (ROAD_W - 16), Math.round(y), 2, 1);
+  }
+  px("#c8c8d0", ROAD_L, -8, 3, 208);                                      // kerb
+  px("#c8c8d0", ROAD_R - 3, -8, 3, 208);
+  for (let y = (sc % 16) - 16; y < 200; y += 16){
+    px("#d84840", ROAD_L, y, 3, 8);
+    px("#d84840", ROAD_R - 3, y, 3, 8);
+  }
+  px("#f0f0f0", ROAD_L + 5, -8, 1, 208);                                  // solid edge lines
+  px("#f0f0f0", ROAD_R - 6, -8, 1, 208);
+
+  /* dashed lane markings — these sell the speed */
+  const DASH = 12, PERIOD = 24;
+  for (let i = 1; i < LANES; i++){
+    const lx = Math.round(ROAD_L + i*LANE_W) - 1;
+    for (let y = (sc % PERIOD) - PERIOD; y < 200; y += PERIOD) px("#e8e8e0", lx, Math.round(y), 2, DASH);
+  }
+
+  /* traffic + player */
+  for (const n of race.npcs){
+    px("rgba(0,0,0,.25)", Math.round(n.x)+2, Math.round(n.y)+3, n.spr.width, n.spr.height);
+    ctx.drawImage(n.spr, Math.round(n.x), Math.round(n.y));
+  }
+  const pxl = Math.round(race.x);
+  px("rgba(0,0,0,.25)", pxl+2, PLAYER_Y+3, PLAYER_CAR.width, PLAYER_CAR.height);
+  ctx.drawImage(PLAYER_CAR, pxl, PLAYER_Y);
+  if (race.state === "running" && race.speed > 200 && (t*20|0)%2)       // exhaust flicker
+    px("#ffd83c", pxl+5, PLAYER_Y + PLAYER_CAR.height, 4, 2);
+  ctx.restore();
+
+  /* HUD */
+  const meters = Math.floor(race.dist / PX_PER_M);
+  px("rgba(16,20,31,.75)", 0, 0, 256, 16);
+  txt(meters + " M", 6, 4, "#ffd83c");
+  txt(Math.round(race.speed * 0.72) + " KM/H", 250, 4, "#cfd6ff", 8, "right");
+
+  if (race.state === "ready"){
+    px("rgba(16,20,31,.6)", 28, 58, 200, 62);
+    txt("HIGHWAY RUN", 128, 68, "#ffd83c", 10, "center");
+    txt("OVERTAKE. DON'T CRASH.", 128, 88, "#cfd6ff", 6, "center");
+    if ((t*2|0)%2 === 0) txt("SLIDE TO DRIVE", 128, 104, "#ffffff", 8, "center");
+  } else if (race.state === "over"){
+    px("rgba(16,20,31,.75)", 28, 50, 200, 82);
+    txt("CRASH!", 128, 58, "#e04038", 12, "center");
+    txt("DISTANCE  " + meters + " M", 128, 80, "#ffffff", 7, "center");
+    txt("BEST      " + race.best + " M", 128, 94, "#ffd83c", 7, "center");
+    if (race.overT > 0.6 && (t*2|0)%2 === 0) txt("TAP TO RETRY", 128, 114, "#cfd6ff", 7, "center");
+  }
+}
+
+/* ---- the slider ---- */
+const sliderEl = document.getElementById("slider");
+const knobEl   = document.getElementById("sKnob");
+(function makeTicks(){                          // one notch per lane centre
+  for (let i = 0; i < LANES; i++){
+    const d = document.createElement("div");
+    d.className = "sTick"; d.dataset.lane = i;
+    document.getElementById("sTrack").appendChild(d);
+  }
+})();
+function laneToSteer(i){
+  const cx = ROAD_L + (i + 0.5)*LANE_W - PLAYER_CAR.width/2;
+  return (cx - ROAD_L - 3) / (ROAD_W - 6 - PLAYER_CAR.width);
+}
+function layoutSlider(){
+  const kw = SLIDER_KNOB_W;
+  knobEl.style.left = `calc(${carSteer*100}% - ${carSteer*kw}px)`;
+  for (const tk of document.querySelectorAll(".sTick")){
+    const v = laneToSteer(+tk.dataset.lane);
+    tk.style.left = `calc(${kw/2}px + ${v*100}% - ${v*kw}px)`;
+  }
+}
+window.addEventListener("resize", layoutSlider);
+
+let grabOff = null;
+function steerFromPointer(clientX){
+  const r = sliderEl.getBoundingClientRect();
+  const kw = SLIDER_KNOB_W;
+  carSteer = Math.max(0, Math.min(1, (clientX - r.left - grabOff) / Math.max(1, r.width - kw)));
+  layoutSlider();
+}
+sliderEl.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  sliderEl.setPointerCapture(e.pointerId);
+  sliderEl.classList.add("held");
+  const kr = knobEl.getBoundingClientRect();
+  /* grab the knob where you touched it; tapping the track jumps the knob there */
+  grabOff = (e.clientX >= kr.left && e.clientX <= kr.right) ? e.clientX - kr.left : SLIDER_KNOB_W/2;
+  steerFromPointer(e.clientX);
+  actionQueued = true;                          // starts / retries the run
+});
+sliderEl.addEventListener("pointermove", e => { if (grabOff !== null) steerFromPointer(e.clientX); });
+const releaseSlider = () => { grabOff = null; sliderEl.classList.remove("held"); };
+sliderEl.addEventListener("pointerup", releaseSlider);
+sliderEl.addEventListener("pointercancel", releaseSlider);
+document.getElementById("screenWrap").addEventListener("pointerdown", () => { if (carMode) actionQueued = true; });
+
+/* ---- switching between the room and the car game ---- */
+const carBtn = document.getElementById("carBtn");
+function setCarMode(on){
+  carMode = on;
+  document.body.classList.toggle("car-mode", on);
+  carBtn.textContent = on ? "◀ BACK TO ROOM" : "▶ PLAY CAR GAME";
+  held.up = held.down = held.left = held.right = false;
+  actionQueued = false;
+  if (on){
+    if (titleShowing){ titleShowing = false; document.getElementById("title").style.display = "none"; }
+    if (dialogOpen){ clearInterval(typeTimer); typing = false; dialogOpen = false; dlg.classList.remove("open"); }
+    initAudio();
+    if (AC && AC.state === "suspended") AC.resume();
+    carSteer = 0.5; resetRace(); layoutSlider();
+    sfx.confirm();
+  } else {
+    sfx.close();
+    if (!started){ started = true; setTimeout(()=> openDialog(CONTENT.intro), 350); }
+  }
+}
+carBtn.addEventListener("click", () => setCarMode(!carMode));
+
+sfx.crash = function(){
+  if (!AC) return;
+  const t0 = AC.currentTime;
+  const s = AC.createBufferSource(); s.buffer = noiseBuf;
+  const g = AC.createGain(), lp = AC.createBiquadFilter();
+  lp.type = "lowpass"; lp.frequency.setValueAtTime(1800, t0);
+  lp.frequency.exponentialRampToValueAtTime(120, t0 + 0.5);
+  g.gain.setValueAtTime(0.6, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.5);
+  s.connect(lp); lp.connect(g); g.connect(sfxGain);
+  s.start(t0); s.stop(t0 + 0.5);
+  tone(sfxGain, "square", 52, t0, 0.35, 0.3, 30);
+};
+
 /* ---------------- Main loop ---------------- */
 let last = performance.now();
 function loop(now){
   const dt = Math.min((now - last)/1000, 0.05);
   last = now;
-  update(dt);
-  render(now/1000);
+  if (carMode){ updateCar(dt); renderCar(now/1000); }
+  else { update(dt); render(now/1000); }
   requestAnimationFrame(loop);
 }
 
