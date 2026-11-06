@@ -96,28 +96,30 @@
   @keyframes bob{ 0%{transform:translateY(0)} 100%{transform:translateY(3px)} }
 
   /* ---------- Title overlay ---------- */
-  #title, #carSplash{
+  #title{
     position:absolute; inset:0; z-index:10;
     background:linear-gradient(180deg,#182448 0%, #23366b 55%, #101a35 100%);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; gap:18px; padding:20px;
   }
-  #title h1, #carSplash h1{
+  #title h1{
     font-size:clamp(14px, 3.2vw, 22px);
     color:#ffd83c;
     text-shadow:2px 2px 0 #a03020, 4px 4px 0 rgba(0,0,0,.45);
     line-height:1.6;
   }
-  #title .sub, #carSplash .sub{ font-size:8px; color:#9fb4ff; line-height:1.8; }
-  #carSplash{ display:none; }
-  #carSplash.open{ display:flex; }
+  #title .sub{ font-size:8px; color:#9fb4ff; line-height:1.8; }
+  /* big START GAME button that stands in for the slider until tapped */
   #startBtn{
-    font-family:inherit; font-size:12px; color:#fff; letter-spacing:.5px;
-    background:#c8403a; border:3px solid #8c1f1a; border-radius:8px;
-    box-shadow:0 4px 0 #701512;
-    padding:12px 18px; cursor:pointer;
+    display:none; width:100%; height:64px;
+    font-family:inherit; font-size:14px; color:#fff; letter-spacing:1px;
+    background:#c8403a; border:3px solid #8c1f1a; border-radius:10px;
+    box-shadow:0 5px 0 #701512;
+    cursor:pointer;
     animation:pulse 1.1s steps(2) infinite;
   }
+  #carUI.splash #startBtn{ display:block; }
+  #carUI.splash #slider, #carUI.splash #sLabel{ display:none; }
   #startBtn:active{ transform:translateY(3px); box-shadow:0 1px 0 #701512; }
   @keyframes pulse{ 0%{ background:#c8403a } 100%{ background:#e05048 } }
   #pressStart{
@@ -264,12 +266,6 @@
       <button id="pressStart">▶ PRESS ENTER</button>
     </div>
 
-    <div id="carSplash">
-      <h1>HIGHWAY RUN</h1>
-      <div class="sub">WEAVE THROUGH TRAFFIC<br>HOW FAR CAN YOU GO?</div>
-      <button id="startBtn">▶ START GAME</button>
-      <div class="sub">OR TAP "MY PORTFOLIO" BELOW</div>
-    </div>
 
     <div id="dialog">
       <span id="dlgTitle"></span>
@@ -295,6 +291,7 @@
   </div>
 
   <div id="carUI">
+    <button id="startBtn">▶ START GAME</button>
     <div id="slider">
       <div id="sTrack"></div>
       <div id="sKnob"><i></i><i></i><i></i></div>
@@ -544,6 +541,9 @@ function scaleTouchControls(k) {
   document.getElementById('sTrack').style.height = Math.round(22 * k) + 'px';
   SLIDER_KNOB_W = Math.round(60 * k);
   document.getElementById('sKnob').style.width = SLIDER_KNOB_W + 'px';
+  const sb = document.getElementById('startBtn');
+  sb.style.height   = Math.round(Math.min(72 * k, dpadSize * 0.75)) + 'px';
+  sb.style.fontSize = Math.round(14 * Math.min(k, 1.6)) + 'px';
 }
 let SLIDER_KNOB_W = 60;
 
@@ -1737,7 +1737,7 @@ function renderCar(t){
     px("rgba(16,20,31,.6)", 28, 58, 200, 62);
     txt("HIGHWAY RUN", 128, 68, "#ffd83c", 10, "center");
     txt("OVERTAKE. DON'T CRASH.", 128, 88, "#cfd6ff", 6, "center");
-    if ((t*2|0)%2 === 0) txt("SLIDE TO DRIVE", 128, 104, "#ffffff", 8, "center");
+    if ((t*2|0)%2 === 0) txt(splashOpen ? "TAP START GAME" : "SLIDE TO DRIVE", 128, 104, "#ffffff", 8, "center");
   } else if (race.state === "over"){
     px("rgba(16,20,31,.75)", 28, 56, 200, 70);
     txt("CRASH!", 128, 64, "#e04038", 12, "center");
@@ -1796,10 +1796,11 @@ document.getElementById("screenWrap").addEventListener("pointerdown", () => { if
 
 /* ---- START GAME splash (mobile boot): one deliberate tap so audio can start ---- */
 let splashOpen = false;
-const splashEl = document.getElementById("carSplash");
+const carUIEl = document.getElementById("carUI");
 function showSplash(on){
   splashOpen = on;
-  splashEl.classList.toggle("open", on);
+  carUIEl.classList.toggle("splash", on);       // START GAME button ⇄ slider
+  if (!on) layoutSlider();
 }
 document.getElementById("startBtn").addEventListener("click", () => {
   unlockAudio();                                // click is a full user gesture → audio allowed
